@@ -1,0 +1,17 @@
+# Common
+.DS_Store
+Thumbs.db
+logs/
+tmp/
+coverage/
+# Node.js
+node_modules/
+dist/
+build/
+.cache/
+.env
+.env.*
+# Playwright
+playwright-report/
+test-results/
+.playwright/
