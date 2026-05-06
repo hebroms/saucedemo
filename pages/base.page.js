@@ -1,36 +1,58 @@
-const { chromium } = require('playwright');
-const ENVIRONMENTS = require('../constants/environment.constants');
-const baseElements = require('../elements/base.elements');
+import page from 'playwright';
+import ENVIRONMENTS from '../constants/environment.constants';
+import selectors from '../elements/base.elements';
 
 class BasePage {
-    constructor(page) {
-        this.page = page;
-    }
+  /**
+   * @param {page} page The Playwright Page object.
+   */
+  constructor(page) {
+    this.page = page;
+  }
 
-    async navigate(route) {
-        const url = `${ENVIRONMENTS.current}${route}`;
-        await this.page.goto(url);
-    }
+  /**
+   * Navigates to a specified route using the current environment context.
+   * @param {string} route The path to navigate to.
+   * @returns {Promise<void>}
+   */
+  async navigate(route) {
+    const url = `${ENVIRONMENTS.current}${route}`;
+    await this.page.goto(url);
+  }
 
-    async assertPageLoaded() {
-        throw new Error('assertPageLoaded must be implemented by subclass');
-    }
+  /**
+   * Asserts that the page has finished loading. Subclasses must override this.
+   * @returns {Promise<void>}
+   */
+  async assertPageLoaded() {
+    throw new Error('assertPageLoaded method must be implemented by subclasses.');
+  }
 
-    async getHeaderContainer() {
-        return this.page.locator(baseElements.headerContainer);
-    }
+  // --- Global Element Methods based on selectors ---
 
-    async getPrimaryHeader() {
-        return this.page.locator(baseElements.primaryHeader);
-    }
+  async getHeaderContainer() {
+    return await this.page.locator(selectors.headerContainer).waitFor();
+  }
 
-    async getOpenMenuToggle() {
-        return this.page.locator(baseElements.openMenuToggle);
-    }
+  async getPrimaryHeader() {
+    return await this.page.locator(selectors.primaryHeader).waitFor();
+  }
 
-    async getShoppingCartLink() {
-        return this.page.locator(baseElements.shoppingCartLink);
-    }
+  async getOpenMenuToggle() {
+    return await this.page.locator(selectors.openMenuToggle).waitFor();
+  }
+
+  async getShoppingCartLink() {
+    return await this.page.locator(selectors.shoppingCartLink).waitFor();
+  }
+
+  async getSecondaryHeader() {
+    return await this.page.locator(selectors.secondaryHeader).waitFor();
+  }
+
+  async getProductSortContainer() {
+    return await this.page.locator(selectors.productSortContainer).waitFor();
+  }
 }
 
-module.exports = BasePage;
+export default BasePage;

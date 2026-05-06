@@ -1,33 +1,40 @@
 const selectors = {
-    // Login Page Elements (SAUCEDEMO8)
-    loginPage: 'page', // Base context for login interactions
-    usernameInput: 'input[name="user"]',
-    passwordInput: 'input[name="password"]',
-    loginButton: 'button:has-text("Login")',
-    errorMessage: 'css=.error-message', // General error message container
+    // Login Page Elements (SAUCEDEMO8, SAUCEDEMO4)
+    loginPage: {
+        usernameInput: 'input[name="user"]', // Inferred from entering username
+        passwordInput: 'input[name="password"]', // Inferred from entering password
+        loginButton: 'button:has-text("Login")', // Inferred from clicking login button
+        errorMessage: 'css=.error-message' // General error message placeholder
+    },
 
-    // Data Input/Form Elements (SAUCEDEMO)
-    quantityInput: 'input[name="quantity"]',
-    dataSubmissionButton: 'button:has-text("Submit")',
-    successMessage: 'div.success',
+    // Data Input / Form Elements (SAUCEDEMO2, SAUCEDEMO3)
+    dataEntryScreen: {
+        quantityInput: 'input[name="quantity"]', // Used for quantity constraints and boundary tests
+        submitButton: 'button:has-text("Add to Cart")' // General submission action
+    },
 
-    // Search Functionality (SAUCEDEMO4)
-    searchField: 'input[name="search"]',
-    searchButton: 'button:has-text("Search")',
-    searchResults: 'div.search-results',
-    noResultsMessage: 'div.no-results',
+    // Product/Search Elements (SAUCEDEMO4)
+    searchPage: {
+        searchBar: 'input[name="search"]', // Inferred from searching for a product name
+        searchButton: 'button:has-text("Search")'
+    },
 
     // Cart Management Elements (SAUCEDEMO4)
-    cartItemQuantityInput: 'input[name="quantity"]', // Specific to cart item quantity
-    addToCartButton: 'button:has-text("Add to Cart")',
-    cartTotalDisplay: 'div.cart-total',
+    cartManagement: {
+        cartTotalDisplay: 'div.cart-total', // Used for price calculation verification
+        itemQuantityInput: 'input[name="quantity"]', // Quantity input within the cart context
+        addToCartButton: 'button:has-text("Add to Cart")' // Action to add items
+    },
 
-    // Navigation and Access (SAUCEDEMO3, SAUCEDEMO8)
-    dashboardNavigation: 'a[href="/dashboard"]',
-    adminLink: 'a[href="/admin"]',
-    inventoryLink: 'a[href="/inventory.html"]',
-    loginRedirectUrl: '/login' // Implied target for redirection
+    // Navigation and Access Control (SAUCEDEMO3, SAUCEDEMO4)
+    navigation: {
+        adminLink: 'a[href="/admin"]', // Used for access denial tests
+        inventoryLink: 'a[href="/inventory.html"]' // Used for unauthorized access tests
+    },
 
-    // Boundary/Validation related (Inferred from various boundary tests)
-    inputFieldForMinMax: 'input[type="number"]' // General selector for numerical inputs tested
+    // Error and Success Messages (General)
+    systemError: {
+        validationError: 'div.validation-error', // For validation errors (e.g., invalid credentials, missing fields)
+        notFoundMessage: 'div.not-found' // For 404 scenarios
+    }
 };
