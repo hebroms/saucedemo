@@ -1,6 +1,6 @@
-const { expect } = require('playwright');
+const { chromium } = require('playwright');
 const ENVIRONMENTS = require('../constants/environment.constants');
-const elements = require('../elements/base.elements');
+const baseElements = require('../elements/base.elements');
 
 class BasePage {
     constructor(page) {
@@ -8,40 +8,29 @@ class BasePage {
     }
 
     async navigate(route) {
-        const fullRoute = `${ENVIRONMENTS.current}${route}`;
-        await this.page.goto(fullRoute);
+        const url = `${ENVIRONMENTS.current}${route}`;
+        await this.page.goto(url);
     }
 
     async assertPageLoaded() {
-        await expect(this.page).toBeLoaded();
-    }
-
-    async openMenu() {
-        await this.page.click(elements.openMenuToggle);
-    }
-
-    async openCart() {
-        await this.page.click(elements.shoppingCartLink);
+        throw new Error('assertPageLoaded must be implemented by subclass');
     }
 
     async getHeaderContainer() {
-        return this.page.locator(elements.headerContainer);
+        return this.page.locator(baseElements.headerContainer);
     }
 
     async getPrimaryHeader() {
-        return this.page.locator(elements.primaryHeader);
+        return this.page.locator(baseElements.primaryHeader);
     }
 
     async getOpenMenuToggle() {
-        return this.page.locator(elements.openMenuToggle);
+        return this.page.locator(baseElements.openMenuToggle);
     }
 
     async getShoppingCartLink() {
-        return this.page.locator(elements.shoppingCartLink);
+        return this.page.locator(baseElements.shoppingCartLink);
     }
-
-    // Placeholder methods for other potential global elements if they existed in base.elements
-    // Example: async logout() { /* implementation */ }
 }
 
 module.exports = BasePage;

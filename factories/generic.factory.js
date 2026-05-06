@@ -1,34 +1,34 @@
 import { GenericData } from '../interfaces/generic.interface';
-import { faker } from '@faker-js/faker';
 
 class TestDataFactory {
-  /**
-   * Generates standard login credentials, prioritizing environment variables.
-   * @returns {GenericData} The generated user and password data.
-   */
-  static loginCredentials(): GenericData {
-    const username = process.env.USERNAME || faker.internet.userName();
-    const password = process.env.PASSWORD || faker.internet.password(12);
+    /**
+     * Generates test data for a standard user login scenario.
+     * @returns {GenericData} The generated test data.
+     */
+    static standardLoginCredentials(): GenericData {
+        // Data derived directly from the provided form field values
+        return {
+            username: "João QA Silva",
+            password: "QortexTest@2024!",
+            submitValue: "qortex_qa_user"
+        };
+    }
 
-    return {
-      username: username,
-      password: password,
-    };
-  }
+    /**
+     * Generates a generic user data structure, potentially using environment variables for dynamic fields.
+     * @returns {GenericData} A generic set of test credentials.
+     */
+    static createGenericUser(): GenericData {
+        // Example of incorporating environment variables if needed for dynamic testing
+        const username = process.env.TEST_USERNAME || 'default_user';
+        const password = process.env.TEST_PASSWORD || 'default_password';
 
-  /**
-   * Generates a unique set of credentials using Faker as the primary source.
-   * @returns {GenericData} The generated user and password data.
-   */
-  static generateUniqueCredentials(): GenericData {
-    const username = faker.internet.userName();
-    const password = faker.internet.password(16);
-
-    return {
-      username: username,
-      password: password,
-    };
-  }
+        return {
+            username: username,
+            password: password,
+            email: `${username}@test.com`, // Example of deriving related data
+        };
+    }
 }
 
-export { TestDataFactory; }
+export { TestDataFactory };

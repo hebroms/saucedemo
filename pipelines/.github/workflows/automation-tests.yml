@@ -1,9 +1,5 @@
 name: Playwright Tests
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -12,10 +8,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: '20'
 
     - name: Install dependencies
       run: npm ci
@@ -25,17 +21,16 @@ jobs:
 
     - name: Run Playwright Tests and Generate Report
       id: playwright_run
-      # Assuming the test command is configured to generate reports in the specified directory
-      run: |
-        npx playwright test --project=chromium --output=./playwright-report
-      env:
-        BASE_URL: ${{ secrets.BASE_URL }}
-        USERNAME: ${{ secrets.USERNAME }}
-        PASSWORD: ${{ secrets.PASSWORD }}
+      # The command runs tests. Playwright automatically generates reports based on its configuration (which we assume exists in playwright.config.js)
+      # We ensure the report directory is created/used as specified.
+      run: npx playwright test --project=chromium --output=./playwright-report
 
-    - name: Upload Playwright Report Artifacts
+    - name: Upload Test Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: playwright-report-${{ github.run_id }}
-        path: playwright-report
-        retention-days: 7
+        path: playwright-report/
+
+artifacts:
+  outputs:
+    report_path: playwright-report/

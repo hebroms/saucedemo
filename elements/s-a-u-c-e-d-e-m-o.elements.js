@@ -1,21 +1,33 @@
 const selectors = {
-    // Login Page Elements (saucedemo 2, SAUCEDEMO8)
-    usernameInput: 'input[name="user"]', // Inferred from entering username
-    passwordInput: 'input[name="password"]', // Inferred from entering password
-    loginButton: 'button:has-text("Login")', // Inferred from clicking login button
-    errorMessage: 'css=.error', // General placeholder for error messages (inferred)
+    // Login Page Elements (SAUCEDEMO8)
+    loginPage: 'page', // Base context for login interactions
+    usernameInput: 'input[name="user"]',
+    passwordInput: 'input[name="password"]',
+    loginButton: 'button:has-text("Login")',
+    errorMessage: 'css=.error-message', // General error message container
 
-    // Data Input/Submission Elements (saucedemo 2, SAUCEDEMO8)
-    dataInputFields: 'input[type="text"]', // General reference to data entry fields
-    submitButton: 'button:has-text("Submit")', // Inferred from submitting the form
-    successMessage: 'css=.success', // Inferred from displaying a success message
+    // Data Input/Form Elements (SAUCEDEMO)
+    quantityInput: 'input[name="quantity"]',
+    dataSubmissionButton: 'button:has-text("Submit")',
+    successMessage: 'div.success',
 
-    // Product/Quantity Input Elements (saucedemo 3, 4)
-    quantityInput: 'input[name="quantity"]', // Used for setting quantity
-    productNameInput: 'input[name="item_name"]', // Used for searching/selecting products
-    addToCartButton: 'button:has-text("Add to Cart")', // Inferred from adding items
-    cartTotalDisplay: 'div.shopping_cart_total_amount', // Inferred from viewing cart summary
+    // Search Functionality (SAUCEDEMO4)
+    searchField: 'input[name="search"]',
+    searchButton: 'button:has-text("Search")',
+    searchResults: 'div.search-results',
+    noResultsMessage: 'div.no-results',
 
-    // Navigation and Access Elements (saucedemo 3, SAUCEDEMO8)
-    inventoryLink: 'a[href="/inventory.html"]', // Used for accessing inventory
+    // Cart Management Elements (SAUCEDEMO4)
+    cartItemQuantityInput: 'input[name="quantity"]', // Specific to cart item quantity
+    addToCartButton: 'button:has-text("Add to Cart")',
+    cartTotalDisplay: 'div.cart-total',
+
+    // Navigation and Access (SAUCEDEMO3, SAUCEDEMO8)
+    dashboardNavigation: 'a[href="/dashboard"]',
+    adminLink: 'a[href="/admin"]',
+    inventoryLink: 'a[href="/inventory.html"]',
+    loginRedirectUrl: '/login' // Implied target for redirection
+
+    // Boundary/Validation related (Inferred from various boundary tests)
+    inputFieldForMinMax: 'input[type="number"]' // General selector for numerical inputs tested
 };
