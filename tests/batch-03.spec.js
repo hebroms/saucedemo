@@ -2,20 +2,26 @@ import { SAUCEDEMOPage } from '../pages/s-a-u-c-e-d-e-m-o.page';
 import * as PageObjects from '../pages/page-objects';
 import * as GenericFactory from '../factories/generic.factory';
 
-describe('SauceDemo Advanced Testing', () => {
+describe('Sauce Demo Feature Tests', () => {
     let browser;
     let page;
-    let genericFactory;
+    let loginPage;
+    let dashboardPage;
 
-    // Setup for Playwright context
+    // Setup environment before each test
     beforeAll(async () => {
         browser = await chromium.launch();
+        page = await browser.newPage();
     });
 
     beforeEach(async () => {
-        page = await browser.newPage();
-        genericFactory = new GenericFactory();
-        await page.goto('https://www.saucedemo.com/');
+        const BASE_URL = process.env.BASE_URL || 'https://www.saucedemo.com/';
+        await page.goto(BASE_URL);
+        loginPage = new SAUCEDEMOPage(page);
+        dashboardPage = new SAUCEDEMOPage(page);
+
+        // Standard login setup for most tests
+        await loginPage.login('user', 'Password123');
     });
 
     afterAll(async () => {
@@ -23,104 +29,85 @@ describe('SauceDemo Advanced Testing', () => {
     });
 
     // Scenario: Boundary Test: Edge Case Data Type Handling
-    test('Testing input with non-numeric or mixed data types in a numeric field', async () => {
-        const user = await genericFactory.createUserName('surfer', 'Password123');
-        await page.goto('https://www.saucedemo.com/login');
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
+    test('Boundary Test: Edge Case Data Type Handling', async () => {
+        // Given the user is entering data into a numerical field
+        // When the user inputs non-numeric characters (e.g., 'abc')
+        // Then the system should handle the input gracefully, either rejecting it or coercing it to an error state
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('Password123');
+        
+        // Simulate entering non-numeric data into a field that expects numbers (assuming there is a numeric field context)
+        // Since the standard SauceDemo flow doesn't explicitly have a numeric input field, we test the general form submission handling for invalid types if possible.
+        // We will focus on ensuring the system handles the submitted state gracefully based on the scenario intent.
+        await loginPage.submit();
 
-        // Simulate entering non-numeric data into a numeric field (assuming there is a numeric field, e.g., quantity or price input if the app supported it, or testing general field robustness)
-        // Since SauceDemo doesn't have explicit numeric fields on the login screen, we test robustness by attempting to enter invalid text where numbers might be expected, or focusing on form submission errors related to data type handling.
-        // For this specific scenario, we simulate inputting 'abc' into a field that expects digits (if such a field existed) or rely on the general validation mechanism catching non-numeric input if it were present.
-        await page.fill('#user-name', 'abc'); // Testing user name field with invalid data type
-        await page.fill('#password', 'correct_password');
-        await page.click('#login-button');
-
-        // Expecting the system to reject the login due to invalid input format or handle it gracefully (e.g., showing a specific error).
-        // We assert that an error state is reached, demonstrating graceful handling rather than crashing.
-        await expect(page.locator('.error-message')).toBeVisible();
-        await expect(page.locator('#error_message')).toHaveText(/Invalid credentials/i);
+        // Assertion: Check if an error related to invalid data type or format is displayed (assuming standard validation catches this)
+        await dashboardPage.assertErrorMessage('Invalid credentials'); // Asserting a general failure state if input handling fails validation
     });
 
     // Scenario: Negative Test: Empty Field Submission
-    test('Attempting to submit a form with mandatory fields empty', async () => {
-        const user = await genericFactory.createUserName('surfer', 'Password123');
-        await page.goto('https://www.saucedemo.com/login');
-        await page.fill('#user-name', user.username);
-        // Intentionally leave password empty
-        await page.fill('#password', '');
-
-        await page.click('#login-button');
-
+    test('Negative Test: Empty Field Submission', async () => {
+        // Given the user is on the data submission screen
+        // When the user attempts to submit without filling required fields
         // Then validation errors should appear next to all missing mandatory fields
-        const errorMessages = await page.locator('.error-message').allTextContents();
         
-        // Check if specific errors for missing fields are present (assuming standard SauceDemo error structure)
-        expect(errorMessages).toHaveLength(2); // Expecting errors for user-name and password
-        expect(page.locator('#user-name').parentElement.querySelector('.error-message')).toHaveText(/this field is required/i);
-        expect(page.locator('#password').parentElement.querySelector('.error-message')).toHaveText(/this field is required/i);
+        await loginPage.goto('/login'); // Navigate back to the login page for this specific test context
+        
+        // Attempt to submit without filling required fields (simulating empty submission)
+        await loginPage.submitEmptyForm();
+
+        // Assertion: Check if validation errors are present next to missing mandatory fields
+        await dashboardPage.assertValidationError('Username is required');
+        await dashboardPage.assertValidationError('Password is required');
     });
 
     // Scenario: Access Test: Session Timeout Handling
-    test('Verifying session expiration and re-authentication requirement', async () => {
-        const user = await genericFactory.createUserName('surfer', 'Password123');
-        await page.goto('https://www.saucedemo.com/login');
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
-
+    test('Access Test: Session Timeout Handling', async () => {
         // Given the user has an active session
-        await expect(page.locator('.inventory_item')).toBeVisible();
+        // When the user remains inactive for the defined timeout period
+        // And attempts to perform a sensitive action
+        // Then the system should force a re-login
 
-        // When the user remains inactive for the defined timeout period (Simulated by waiting, assuming application logic handles session expiry)
-        // Note: Actual session timeout testing requires controlling time or relying on specific backend session management. We simulate inactivity wait here.
-        await page.waitForTimeout(5000); // Wait longer than typical short timeouts
-
-        // And attempts to perform a sensitive action (Attempting to navigate away and back, simulating re-authentication requirement)
-        await page.goto('https://www.saucedemo.com/login');
+        await loginPage.login('user', 'Password123');
         
-        // Then the system should force a re-login (Verify that the session is now expired or requires re-entry)
-        await expect(page.locator('#user-name')).toBeVisible(); // Check if we are back on the login screen, implying session loss.
+        // Simulate inactivity (This requires specific Playwright context manipulation or waiting, simulating time passing)
+        // In a real scenario, this would involve pausing execution and waiting for session expiry logic to trigger.
+        // For testing purposes, we simulate the action that triggers the timeout mechanism.
+        await dashboardPage.attemptSensitiveAction(); 
+
+        // Assertion: Check if the system forces a re-login (i.e., redirects back to login)
+        await loginPage.assertRedirectToLogin();
     });
 
     // Scenario: Verificar tratamento de entrada negativa (Input Validation)
-    test('Tentar executar com campos vazios ou inválidos', async () => {
-        const user = await genericFactory.createUserName('surfer', 'Password123');
-        await page.goto('https://www.saucedemo.com/login');
-
+    test('Verificar tratamento de entrada negativa (Input Validation)', async () => {
+        // Given Usuário padrão logado
         // When Tenta submeter o formulário com campos obrigatórios vazios
-        await page.fill('#user-name', '');
-        await page.fill('#password', '');
-
         // Then O sistema deve retornar uma mensagem de erro válida
-        await page.click('#login-button');
 
-        // Asserting the system returns a valid error message for missing fields (as per Scenario 2/4)
-        const errorMessage = await page.locator('.error-message').first().innerText();
-        expect(errorMessage).toContain('this field is required');
+        await loginPage.goto('/login'); // Start on the login page
+        
+        // Attempt to submit with empty mandatory fields
+        await loginPage.submitEmptyForm();
+
+        // Assertion: Check if a specific, valid error message is returned
+        await dashboardPage.assertErrorMessage('Username is required'); 
     });
 
     // Scenario: Verificação de erro em comunicação externa (Regra de Negócio)
-    test('Simular falha na integração com um serviço externo', async () => {
-        // NOTE: Since we are testing a public site (saucedemo.com), simulating an internal service failure requires mocking the network responses, which is complex without access to the application's backend structure or specific API endpoints.
-        // We simulate the action flow and assert that if an error *were* returned from an external dependency, the system handles it gracefully.
-
-        const user = await genericFactory.createUserName('surfer', 'Password123');
-        await page.goto('https://www.saucedemo.com/login');
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-
-        // To simulate external failure, we would typically intercept the API call here and force a 500 error.
-        // Since direct mocking of SauceDemo's internal service is outside the scope of simple UI testing without setup, we assert the expected behavior if an error state were present during execution.
-        
-        // Given the constraints, we test the successful path, acknowledging that true external failure simulation requires advanced mocking setup not provided by the prompt context.
-        await page.click('#login-button');
-
-        // If a real external service failed (e.g., inventory check), we would expect:
+    test('Verificação de erro em comunicação externa (Regra de Negócio)', async () => {
+        // Given O serviço externo está simulando falha de resposta
+        // When Executa a funcionalidade que depende desse serviço
         // Then O sistema deve tratar o erro e exibir uma mensagem de indisponibilidade
+
+        // Note: Simulating external service failure usually requires mocking the API layer. 
+        // In a UI context, we simulate the resulting error state displayed on the page.
+        await loginPage.login('user', 'Password123');
         
-        // We assert successful login as the baseline, assuming no immediate external failure is present on this specific path for demonstration purposes.
-        await expect(page.locator('.inventory_item')).toBeVisible();
+        // Simulate the action that triggers the dependency call (e.g., clicking a feature)
+        await dashboardPage.executeFeatureDependentOnExternalService();
+
+        // Assertion: Check if the system handles the error and displays an unavailability message
+        await dashboardPage.assertErrorMessage('Service unavailable');
     });
-});
+})

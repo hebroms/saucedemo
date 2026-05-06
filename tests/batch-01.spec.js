@@ -2,103 +2,110 @@ import { SAUCEDEMOPage } from '../pages/s-a-u-c-e-d-e-m-o.page';
 import * as PageObjects from '../pages/page-objects';
 import * as GenericFactory from '../factories/generic.factory';
 
-test('Verifying a business rule related to data quantity constraints', async ({ page, SAUCEDEMOPage }) => {
-  const data = GenericFactory.getValidUserCredentials();
-  await page.goto('https://www.saucedemo.com/');
-  await SAUCEDEMOPage.login(page, data.username, data.password);
+describe('SauceDemo Feature Tests', () => {
+    let browser;
+    let page;
+    let loginPage;
+    let dashboardPage;
 
-  // Given the user is attempting to purchase an item
-  await page.goto('/inventory.html');
+    // Setup environment before each test
+    beforeAll(async () => {
+        browser = await chromium.launch();
+        page = await browser.newPage();
+    });
 
-  // When the user attempts to set the quantity below the minimum required amount (e.g., quantity = -1)
-  await page.locator('#quantity').fill('-1');
-  await page.locator('button:has-text("Add to cart")').click();
+    beforeEach(async () => {
+        const BASE_URL = process.env.BASE_URL || 'https://www.saucedemo.com/';
+        await page.goto(BASE_URL);
+        loginPage = PageObjects.loginPage;
+        dashboardPage = PageObjects.dashboardPage;
+    });
 
-  // Then the system must reject the transaction and display a constraint error
-  const errorMessage = await page.locator('.error').innerText();
-  expect(errorMessage).toContain('Quantity must be greater than or equal to 1');
-});
+    afterAll(async () => {
+        await browser.close();
+    });
 
-test('Attempting login with an invalid password', async ({ page, SAUCEDEMOPage }) => {
-  await page.goto('https://www.saucedemo.com/');
+    // Scenario: Negative Test: Invalid Password Attempt
+    test('Attempting login with an invalid password should display an appropriate error message', async () => {
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('wrongpassword');
+        await loginPage.clickLogin();
 
-  // Given the user is on the login page
-  await page.goto('/login');
+        await expect(loginPage.getErrorMessage()).toHaveText('Invalid credentials');
+    });
 
-  // When the user enters a valid username and an incorrect password
-  await page.locator('#user-name').fill('standard_user');
-  await page.locator('#password').fill('wrong_password');
-  await page.locator('button:has-text("Login")').click();
+    // Scenario: Positive Test: Successful Data Submission
+    test('Successfully submitting a form/data entry via the feature should display a success message and save data', async () => {
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('secret_sauce');
+        await loginPage.clickLogin();
 
-  // Then an appropriate error message regarding invalid credentials should be displayed
-  const errorMessage = await page.locator('.error').innerText();
-  expect(errorMessage).toContain('Invalid credentials');
-});
+        await dashboardPage.navigateToDataInputScreen();
+        await dashboardPage.enterData('Sauce Labs Backpack', '10');
+        await dashboardPage.submitForm();
 
-test('Successfully submitting a form/data entry via the feature', async ({ page, SAUCEDEMOPage }) => {
-  const data = GenericFactory.getValidUserCredentials();
-  await page.goto('https://www.saucedemo.com/');
-  await SAUCEDEMOPage.login(page, data.username, data.password);
+        await expect(dashboardPage.getSuccessMessage()).toBeVisible();
+        await expect(dashboardPage.getDataDisplayed()).toHaveText('Sauce Labs Backpack');
+    });
 
-  // Given the user is on the data input screen (Inventory page)
-  await page.goto('/inventory.html');
+    // Scenario: Business Rule Test: Data Constraint Validation (Inferred)
+    test('The system must reject the transaction and display a constraint error when quantity is below minimum', async () => {
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('secret_sauce');
+        await loginPage.clickLogin();
 
-  // When the user enters valid, non-empty data and submits the form
-  const itemName = 'Sauce Labs Backpack';
-  await page.locator('#item_name').fill(itemName);
-  await page.locator('#quantity').fill('2');
-  await page.locator('button:has-text("Add to cart")').click();
+        await dashboardPage.navigateToInventoryScreen();
+        // Attempt to set quantity below minimum (e.g., -1)
+        await dashboardPage.setQuantity(-1);
+        await dashboardPage.clickAddToCart(); // Assuming adding to cart triggers validation or we check the error state immediately after setting it.
 
-  // Then a success message should be displayed and data should be saved
-  const cartItemText = await page.locator('.inventory_item').first().innerText();
-  expect(cartItemText).toContain(itemName);
-  await expect(page.locator('.success')).toBeVisible();
-});
+        await expect(dashboardPage.getConstraintErrorMessage()).toBeVisible();
+        await expect(dashboardPage.getConstraintErrorMessage()).toHaveText('Quantity must be greater than or equal to 1');
+    });
 
-test('Verifying that submitted data persists across sessions', async ({ page, SAUCEDEMOPage }) => {
-  const data = GenericFactory.getValidUserCredentials();
+    // Scenario: Regression Test: Data Persistence Check
+    test('The previously entered data should still be visible and correct after logging out and logging back in', async () => {
+        // Session A: Save data
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('secret_sauce');
+        await loginPage.clickLogin();
 
-  // Given the user successfully saved data in Session A
-  await page.goto('https://www.saucedemo.com/');
-  await SAUCEDEMOPage.login(page, data.username, data.password);
-  await page.goto('/inventory.html');
+        await dashboardPage.navigateToDataInputScreen();
+        await dashboardPage.enterData('Session A Item', '5');
+        await dashboardPage.submitForm();
+        await expect(dashboardPage.getSuccessMessage()).toBeVisible();
 
-  const itemToSave = 'Sauce Labs Backpack';
-  await page.locator('#item_name').fill(itemToSave);
-  await page.locator('#quantity').fill('5');
-  await page.locator('button:has-text("Add to cart")').click();
-  await expect(page.locator('.success')).toBeVisible();
+        // Logout and Log back in (Simulating session change)
+        await loginPage.clickLogout();
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('secret_sauce');
+        await loginPage.clickLogin();
 
-  // When the user logs out and logs back in (or navigates back)
-  await page.locator('#logout_button').click();
-  await page.goto('https://www.saucedemo.com/');
-  await SAUCEDEMOPage.login(page, data.username, data.password);
+        // Verify persistence
+        await dashboardPage.navigateToDataInputScreen();
+        const savedData = await dashboardPage.getDataDisplayed();
 
-  // Then the previously entered data should still be visible and correct
-  await page.goto('/inventory.html');
-  const savedItemText = await page.locator('#item_name').inputValue();
-  const savedQuantity = await page.locator('#quantity').inputValue();
+        await expect(savedData).toHaveText('Session A Item');
+        await expect(dashboardPage.getSavedQuantity()).toHaveText('5');
+    });
 
-  expect(savedItemText).toBe(itemToSave);
-  expect(savedQuantity).toBe('5');
-});
+    // Scenario: Regression Test: Verify Existing User Dashboard Access
+    test('All expected UI components should be present and functional on the main dashboard', async () => {
+        await loginPage.gotoLoginPage();
+        await loginPage.enterUsername('user');
+        await loginPage.enterPassword('secret_sauce');
+        await loginPage.clickLogin();
 
-test('Verifying access to previously established user dashboard elements', async ({ page, SAUCEDEMOPage }) => {
-  const data = GenericFactory.getValidUserCredentials();
-  await page.goto('https://www.saucedemo.com/');
-  await SAUCEDEMOPage.login(page, data.username, data.password);
+        await dashboardPage.navigateToDashboard();
 
-  // Given the user is logged in
-  await page.goto('/inventory.html'); // Navigating to a key dashboard area
-
-  // When the user navigates to the main dashboard (implicitly checked by being logged in)
-  // We check for core elements that confirm successful session establishment
-  
-  // Then all expected UI components (e.g., navigation bar, profile link) should be present and functional
-  const navBar = page.locator('nav');
-  const profileLink = page.locator('#user-name');
-
-  expect(navBar).toBeVisible();
-  expect(profileLink).toBeVisible();
-  expect(profileLink).toHaveText(data.username);
+        // Verify presence of expected UI components
+        await expect(dashboardPage.getNavigationBar()).toBeVisible();
+        await expect(dashboardPage.getProfileLink()).toBeVisible();
+        await expect(dashboardPage.getInventorySection()).toBeVisible();
+    });
 });

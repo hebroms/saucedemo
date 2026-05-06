@@ -1,34 +1,21 @@
 const { faker } = require('@faker-js/faker');
 
 /**
- * Factory for generating a unique user name.
- * @returns {string} A unique user name.
+ * Factory for generating user form data.
  */
-function createUserName() {
-    // Use faker for realistic names, appended with a unique identifier
-    return `${faker.person.firstName()} ${faker.person.lastName()}${Date.now()}`;
-}
+const createLoginForm = () => {
+    const username = faker.person.fullName();
+    // Credentials must come from process.env as per instructions
+    const usernameFromEnv = process.env.TEST_USERNAME || 'default_user';
+    const passwordFromEnv = process.env.TEST_PASSWORD || 'default_password';
 
-/**
- * Factory for generating a unique password.
- * @returns {string} A unique password.
- */
-function createPassword() {
-    // Use faker for strong passwords, appended with a unique identifier
-    return `${faker.internet.password()}!${Date.now()}`;
-}
-
-/**
- * Factory for generating a unique login action/value.
- * @returns {string} A unique login button value.
- */
-function createLoginAction() {
-    // Generate a unique action string
-    return `login_${faker.word().toUpperCase()}_${Date.now()}`;
-}
+    return {
+        'user-name': username,
+        'password': passwordFromEnv,
+        'login-button': `submit_${username.replace(/\s/g, '_')}`
+    };
+};
 
 module.exports = {
-    createUserName,
-    createPassword,
-    createLoginAction
+    createLoginForm
 };

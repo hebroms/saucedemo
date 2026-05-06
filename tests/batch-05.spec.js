@@ -2,88 +2,74 @@ import { SAUCEDEMOPage } from '../pages/s-a-u-c-e-d-e-m-o.page';
 import * as PageObjects from '../pages/page-objects';
 import * as GenericFactory from '../factories/generic.factory';
 
-describe('SauceDemo 3 Feature Tests', () => {
-    let browser;
-    let page;
-    let saucedemoPage;
+describe('SauceDemo Feature Tests', () => {
+    let loginPage: SAUCEDEMOPage;
+    let dashboardPage: any; // Assuming a separate page object exists for the dashboard/feature area
 
-    // Setup: Instantiate the browser and page before each test
     beforeEach(async () => {
-        browser = await chromium.launch();
-        page = await browser.newPage();
-        saucedemoPage = new SAUCEDEMOPage(page);
-        await page.goto('https://www.saucedemo.com/');
+        // Initialize Page Objects
+        loginPage = new SAUCEDEMOPage();
+        // In a real scenario, initialize other necessary page objects if they exist.
     });
 
-    // Test 1: Smoke Test - Verificar carregamento inicial
-    test('Verificar carregamento inicial da feature saucedemo 3 (Smoke Test)', async () => {
-        // Given Usuário padrão está logado (Assumed setup via factory/login flow)
-        await GenericFactory.loginAs('standard_user');
-
+    // Scenario: Verificar carregamento inicial da feature saucedemo 3 (Smoke Test)
+    test('Verificar o acesso à página principal', async () => {
+        // Given Usuário padrão está logado (Setup handled by beforeEach)
         // When Navega para a página de entrada da feature
-        await saucedemoPage.navigateToFeatureEntry();
-
+        await loginPage.navigate(); // Assuming a method exists to navigate to the entry point
+        
         // Then A página deve carregar sem erros
-        await expect(page).toHaveURL(/.*saucedemo/); // Basic check for navigation success
-        expect(page.status()).toBe(200);
+        await dashboardPage.assertLoaded(); 
     });
 
-    // Test 2: Boundary Testing - Limite inferior de entrada (Mínimo)
-    test('Testar o limite mínimo permitido para um parâmetro', async () => {
+    // Scenario: Verificar limite inferior de entrada (Boundary Testing)
+    test('Testar o limite mínimo permitido para um parâmetro X', async () => {
         // Given Usuário padrão logado
-        await GenericFactory.loginAs('standard_user');
-
-        const minX = 0; // Assuming minimum allowed value is 0 or a very small number based on context, using 0 for boundary test simplicity if applicable.
-        const minY = 1; // Setting a minimal positive integer for demonstration
-
-        // When Insere o valor mínimo permitido no campo Y
-        await saucedemoPage.enterValue(minX, minY);
-
+        const minXValue = 0; // Assuming minimum allowed value is 0 or a defined minimum based on context
+        
+        // When Insere o valor mínimo permitido no campo X
+        await loginPage.enterMinBoundaryValue('X', minXValue);
+        
         // Then O sistema deve aceitar a entrada e processar corretamente
-        await expect(page.locator('#login-error')).toBeHidden(); // Check if processing succeeded (assuming success hides errors)
-        await expect(page.locator('.error-message')).toHaveText(/Entrada válida/i); // Assuming success message is displayed
+        await loginPage.verifyInputProcessed('X'); // Assuming a method to verify successful processing of the input
     });
 
-    // Test 3: Boundary Testing - Limite superior de entrada (Máximo)
-    test('Testar o limite máximo permitido para um parâmetro', async () => {
+    // Scenario: Verificar limite superior de entrada (Boundary Testing)
+    test('Testar o limite máximo permitido para um parâmetro Y', async () => {
         // Given Usuário padrão logado
-        await GenericFactory.loginAs('standard_user');
-
-        const maxX = 999; // Assuming a high boundary value for demonstration
-        const maxY = 100;
-
-        // When Insere o valor máximo permitido no campo X
-        await saucedemoPage.enterValue(maxX, maxY);
-
+        const maxXValue = 999; // Assuming a reasonable maximum boundary for testing purposes
+        
+        // When Insere o valor máximo permitido no campo Y
+        await loginPage.enterMaxBoundaryValue('Y', maxXValue);
+        
         // Then O sistema deve aceitar a entrada e processar corretamente
-        await expect(page).toHaveURL(/.*saucedemo/); // Check if navigation/processing succeeded
-        await expect(page.locator('.error-message')).toBeHidden();
+        await loginPage.verifyInputProcessed('Y'); // Assuming a method to verify successful processing of the input
     });
 
-    // Test 4: Business Rule - Perfil restrito
-    test('Execução da feature por um perfil de usuário restrito', async () => {
+    // Scenario: Verificar comportamento com perfil de usuário diferente (Regra de Negócio)
+    test('Execução da feature por um perfil de usuário restrito deve ser bloqueada', async () => {
         // Given Usuário com perfil 'Leitor' logado
-        await GenericFactory.loginAs('reporter_user'); // Assuming 'reporter_user' maps to 'Leitor' role
+        const restrictedUser = await GenericFactory.createUserWithProfile('Leitor'); // Assuming factory handles user creation/login setup
+        await loginPage.login(restrictedUser.username, 'password');
 
         // When Tenta executar a funcionalidade que exige permissão de 'Editor'
-        await saucedemoPage.attemptRestrictedAction('editor_permission');
+        await loginPage.attemptRestrictedAction('Editor'); 
 
         // Then A funcionalidade deve ser bloqueada
-        await expect(page.locator('.permission-denied')).toBeVisible();
-        await expect(page.locator('.success-message')).toBeHidden();
+        await loginPage.assertActionBlocked(); // Assuming a method to check for the blocked state
     });
 
-    // Test 5: Business Rule - Regra de negócio baseada no valor
+    // Scenario: Verificação da exibição correta das regras de negócio (Regra de Negócio)
     test('Exibir a regra de negócio baseada no valor inserido', async () => {
         // Given O usuário insere um valor que aciona uma regra específica (Ex: Valor > 100)
-        await GenericFactory.loginAs('standard_user');
-
-        const triggeringValue = 150; // Value > 100
+        const triggeringValue = 101; 
 
         // When Visualiza o resultado da operação
-        await saucedemoPage.performOperationWithValue(triggeringValue);
+        await loginPage.enterValueForRule('X', triggeringValue);
+        await loginPage.viewResult(); // Assuming a method to trigger the result display
 
         // Then A mensagem exibida deve corresponder à regra de negócio associada
-        await expect(page.locator('.rule-message')).toHaveText(/Valor acima do limite permitido/i);
+        const expectedMessage = 'Regra aplicada para valor acima de 100';
+        await loginPage.assertResultMessage(expectedMessage);
     });
 });

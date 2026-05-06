@@ -2,87 +2,98 @@ import { SAUCEDEMOPage } from '../pages/s-a-u-c-e-d-e-m-o.page';
 import * as PageObjects from '../pages/page-objects';
 import * as GenericFactory from '../factories/generic.factory';
 
-test('Attempting to add minimum quantity (1)', async ({ page, SAUCEDEMOPage, GenericFactory }) => {
-  // Setup: Navigate to the product page context
-  await page.goto('https://www.saucedemo.com/');
-  const productPage = new SAUCEDEMOPage(page);
+describe('SauceDemo Feature Tests', () => {
+    let browser;
+    let page;
+    let saucedemoPage;
+    let genericFactory;
 
-  // Arrange: Use factory to set up a standard scenario (assuming default stock is available)
-  const productData = GenericFactory.getStandardProductData(); 
+    const BASE_URL = process.env.BASE_URL || 'https://www.saucedemo.com/';
 
-  // Act: Set quantity to minimum (1) and add to cart
-  await productPage.setQuantity(productData.id, 1);
-  await productPage.clickAddToCart();
+    beforeAll(async () => {
+        browser = await chromium.launch();
+        page = await browser.newPage();
+    });
 
-  // Assert
-  await expect(productPage.getCartSummary()).toHaveText(/Item added successfully/i);
-});
+    beforeEach(async () => {
+        await page.goto(BASE_URL);
+        saucedemoPage = new SAUCEDEMOPage(page);
+        genericFactory = new GenericFactory(page);
+        // Assuming login setup is required for most tests, though specific scenarios might require different initial states.
+    });
 
-test('Attempting to add maximum allowed quantity', async ({ page, SAUCEDEMOPage, GenericFactory }) => {
-  // Setup: Set up a product with a specific stock limit (N)
-  const maxStockLimit = 2; // Example N
-  await page.goto('https://www.saucedemo.com/');
-  const productPage = new SAUCEDEMOPage(page);
+    afterAll(async () => {
+        await browser.close();
+    });
 
-  // Arrange: Simulate setting the maximum quantity and attempting to exceed it
-  await productPage.setQuantity(GenericFactory.getTestProductId(), maxStockLimit);
-  
-  // Act: Attempt to set quantity slightly above N (N+1) and click Add to Cart
-  await productPage.setQuantity(GenericFactory.getTestProductId(), maxStockLimit + 1);
-  await productPage.clickAddToCart();
+    test('Scenario: Attempting to add minimum quantity (1)', async () => {
+        // Given the user is viewing a product page
+        await saucedemoPage.navigateToProductPage(); 
+        
+        // When the user sets the quantity input to 1
+        await genericFactory.setQuantityInput(1);
+        
+        // And clicks Add to Cart
+        await saucedemoPage.addToCart();
+        
+        // Then the item should be added successfully
+        await saucedemoPage.assertItemAddedSuccessfully();
+    });
 
-  // Assert
-  // Expect an error message related to stock limits
-  await expect(productPage.getErrorMessage()).toContainText('stock limit');
-});
+    test('Scenario: Attempting to add maximum allowed quantity', async () => {
+        // Given the product has a maximum stock limit of N (Assuming N=99 for testing purposes if not explicitly defined)
+        const maxStockLimit = 99; 
+        await genericFactory.setProductMaxStock(maxStockLimit);
 
-test('Verifying the final price calculation includes taxes/fees (if applicable)', async ({ page, SAUCEDEMOPage, GenericFactory }) => {
-  // Setup: Assume a scenario where we can calculate expected totals based on setup data
-  await page.goto('https://www.saucedemo.com/');
-  const productPage = new SAUCEDEMOPage(page);
+        // When the user attempts to set quantity to N (or slightly above)
+        await genericFactory.setQuantityInput(maxStockLimit + 1);
+        
+        // And clicks Add to Cart
+        await saucedemoPage.addToCart();
+        
+        // Then the system should display an appropriate error message regarding stock limits
+        await saucedemoPage.assertStockLimitErrorDisplayed();
+    });
 
-  // Arrange: Set up items and proceed to payment
-  await productPage.setQuantity(GenericFactory.getTestProductId(), 1);
-  await productPage.clickAddToCart();
-  
-  // Simulate proceeding to payment (assuming the system calculates totals)
-  await productPage.goToPayment();
+    test('Scenario: Verifying the final price calculation includes taxes/fees (if applicable)', async () => {
+        // Given the cart total is calculated
+        await saucedemoPage.navigateToCart();
+        
+        // When the user proceeds to payment stage
+        await saucedemoPage.proceedToPayment();
+        
+        // Then the displayed final amount must strictly match the calculated total plus any mandatory fees
+        const expectedFinalAmount = 100 + 5; // Example calculation: $100 item + $5 fee
+        await saucedemoPage.assertFinalAmountMatchesCalculation(expectedFinalAmount);
+    });
 
-  // Act & Assert: Verify the final amount matches the expected calculated total + fees
-  const expectedTotalWithFees = GenericFactory.calculateExpectedFinalAmount(1); // Hypothetical calculation based on factory logic
+    test('Scenario: Entering an invalid email format for account creation', async () => {
+        // Given the user is on the registration form
+        await saucedemoPage.navigateToRegistrationForm();
+        
+        // When the user enters an improperly formatted email address
+        const invalidEmail = 'invalid-email-format';
+        await genericFactory.enterInvalidEmail(invalidEmail);
+        
+        // And attempts to register
+        await saucedemoPage.attemptRegistration();
+        
+        // Then a clear validation error must be displayed for the email field
+        await saucedemoPage.assertValidationErrorDisplayedForEmail(invalidEmail);
+    });
 
-  await expect(productPage.getFinalAmount()).toBeCloseTo(expectedTotalWithFees, 2);
-});
-
-test('Entering an invalid email format for account creation', async ({ page, SAUCEDEMOPage, GenericFactory }) => {
-  // Setup: Navigate to registration form context
-  await page.goto('https://www.saucedemo.com/login'); // Start at login to simulate navigation flow if needed, or directly navigate to registration if available. Assuming we need a registration path.
-  const registrationPage = new SAUCEDEMOPage(page);
-
-  // Arrange: Use an invalid email format
-  const invalidEmail = 'invalid-email-format';
-
-  // Act: Enter the invalid email and attempt registration
-  await registrationPage.enterEmail(invalidEmail);
-  await registrationPage.enterPassword('somepassword'); // Need to fill other fields for submission context
-  await registrationPage.clickRegister();
-
-  // Assert: Check for validation error message
-  await expect(registrationPage.getErrorMessage()).toContainText('Please enter a valid email address');
-});
-
-test('Searching for a non-existent product', async ({ page, SAUCEDEMOPage, GenericFactory }) => {
-  // Setup: Navigate to the search page context
-  await page.goto('https://www.saucedemo.com/');
-  const productPage = new SAUCEDEMOPage(page);
-
-  // Arrange: Use a clearly non-existent item name
-  const nonExistentItem = 'nonexistent_product_xyz123';
-
-  // Act: Search for the item and click search
-  await productPage.searchForProduct(nonExistentItem);
-  await productPage.clickSearch();
-
-  // Assert: Check if the expected 'No results found' message is displayed
-  await expect(productPage.getSearchResults()).toContainText('No results found');
+    test('Scenario: Searching for a non-existent product', async () => {
+        // Given the user is on the search page
+        await saucedemoPage.navigateToSearchPage();
+        
+        // When the user searches for a random, non-existent item
+        const nonExistentItem = 'nonexistentproduct12345';
+        await genericFactory.searchForProduct(nonExistentItem);
+        
+        // And clicks Search
+        await saucedemoPage.performSearch();
+        
+        // Then a message stating 'No results found' should be displayed
+        await saucedemoPage.assertNoResultsFoundMessageDisplayed();
+    });
 });
