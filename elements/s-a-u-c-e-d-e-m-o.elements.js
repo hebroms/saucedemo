@@ -1,29 +1,21 @@
 const selectors = {
-    // Login Page Elements (SAUCEDEMO8)
-    usernameInput: 'input[name="user"]', // Inferred from login scenarios
-    passwordInput: 'input[name="password"]', // Inferred from login scenarios
+    // Login Page Elements (saucedemo 2, SAUCEDEMO8)
+    usernameInput: 'input[name="user"]', // Inferred from entering username
+    passwordInput: 'input[name="password"]', // Inferred from entering password
     loginButton: 'button:has-text("Login")', // Inferred from clicking login button
-    errorMessage: 'css=.error-message', // General error message container (inferred)
+    errorMessage: 'css=.error', // General placeholder for error messages (inferred)
 
-    // Data Input/Form Elements (General)
-    quantityInput: 'input[name="quantity"]', // Used for quantity testing
-    submitButton: 'button:has-text("Add to Cart")', // Used for adding items
-    dataSubmissionForm: 'form', // General form element
+    // Data Input/Submission Elements (saucedemo 2, SAUCEDEMO8)
+    dataInputFields: 'input[type="text"]', // General reference to data entry fields
+    submitButton: 'button:has-text("Submit")', // Inferred from submitting the form
+    successMessage: 'css=.success', // Inferred from displaying a success message
 
-    // Search Functionality (SAUCEDEMO4)
-    searchField: 'input[name="search"]', // Inferred from searching scenarios
-    searchButton: 'button:has-text("Search")', // Inferred from clicking search
+    // Product/Quantity Input Elements (saucedemo 3, 4)
+    quantityInput: 'input[name="quantity"]', // Used for setting quantity
+    productNameInput: 'input[name="item_name"]', // Used for searching/selecting products
+    addToCartButton: 'button:has-text("Add to Cart")', // Inferred from adding items
+    cartTotalDisplay: 'div.shopping_cart_total_amount', // Inferred from viewing cart summary
 
-    // Cart/Product Page Elements (SAUCEDEMO4)
-    cartTotalDisplay: 'div.cart-total', // Used for price calculation checks
-    quantityUpdateInput: 'input[name="quantity"]', // Quantity input on product page
-    addToCartButton: 'button:has-text("Add to Cart")', // Add to cart action
-
-    // Navigation/Access Control (SAUCEDEMO3, SAUCEDEMO8)
-    dashboardNavigation: 'a[href="/dashboard"]', // Inferred from navigating to dashboard
-    inventoryLink: 'a[href="/inventory.html"]', // Specific inventory access check
-    adminUrl: '/admin', // Used for access restriction testing
-
-    // Session/Error Handling (General)
-    systemErrorMessage: '.system-error', // For generic system messages
+    // Navigation and Access Elements (saucedemo 3, SAUCEDEMO8)
+    inventoryLink: 'a[href="/inventory.html"]', // Used for accessing inventory
 };

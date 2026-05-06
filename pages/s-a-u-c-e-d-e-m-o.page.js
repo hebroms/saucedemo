@@ -1,373 +1,355 @@
+import { expect } from '@playwright/test';
+import {
+    usernameInput,
+    passwordInput,
+    loginButton,
+    errorMessage,
+    quantityInput,
+    addToCartButton,
+    checkoutButton,
+    searchField,
+    searchResults,
+    inventoryLink,
+    cartItemQuantity,
+    sessionTimeoutElement, // Hypothetical element for session handling
+} from '../elements/s-a-u-c-e-d-e-m-o.elements';
+
 class SAUCEDEMOPage {
     constructor(page) {
         this.page = page;
-        // Import selectors from the specified path
-        this.selectors = require('../elements/s-a-u-c-e-d-e-m-o.elements');
     }
 
     async givenUserIsOnLoginPage() {
         await this.page.goto('https://www.saucedemo.com/');
-        await this.assertLoaded('loginPage');
-    }
-
-    async whenUserEntersValidCredentials(username, password) {
-        await this.page.fill(this.selectors.usernameInput, username);
-        await this.page.fill(this.selectors.passwordInput, password);
-    }
-
-    async whenUserClicksLogin() {
-        await this.page.click(this.selectors.loginButton);
-    }
-
-    async thenAppropriateErrorMessageIsDisplayed(expectedMessage) {
-        const errorMessage = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorMessage.includes(expectedMessage)) {
-            throw new Error(`Expected error message not found. Found: ${errorMessage}`);
-        }
     }
 
     async whenUserAttemptsToSetQuantityBelowMinimum(quantity) {
-        await this.page.fill(this.selectors.quantityInput, String(quantity));
+        await this.quantityInput.fill(String(quantity));
     }
 
     async thenSystemMustRejectTransactionAndDisplayConstraintError() {
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('minimum quantity')) {
-            throw new Error(`Expected constraint error not found. Found: ${errorText}`);
-        }
+        // Assertion logic for error display related to quantity constraint
+        const errorText = await this.errorMessage.innerText();
+        expect(errorText).toContain('Quantity must be greater than 0');
     }
 
-    async whenUserEntersValidDataAndSubmitsForm(data) {
-        await this.page.fill(this.selectors.usernameInput, data.username);
-        await this.page.fill(this.selectors.passwordInput, data.password);
-        await this.page.click(this.selectors.loginButton);
+    async whenUserEntersValidUsernameAndPassword(username, password) {
+        await this.usernameInput.fill(username);
+        await this.passwordInput.fill(password);
+    }
+
+    async whenUserClicksLoginButton() {
+        await this.loginButton.click();
+    }
+
+    async thenAppropriateErrorMessageShouldBeDisplayed(expectedError) {
+        const actualError = await this.errorMessage.innerText();
+        expect(actualError).toContain(expectedError);
+    }
+
+    async givenUserIsOnDataInputScreen() {
+        // Assuming navigation to the inventory/product page is the data input screen context
+        await this.page.goto('https://www.saucedemo.com/inventory.html');
+    }
+
+    async whenUserEntersValidNonEmptyDataAndSubmitsForm() {
+        // This step is highly contextual, assuming interaction with product inputs and submission
+        // Placeholder for actual data entry logic if specific fields were defined in imports
+        await this.page.click('Add to Cart'); // Simplified action based on context
     }
 
     async thenSuccessMessageShouldBeDisplayedAndDataShouldBeSaved() {
-        const successMessage = await this.page.locator(this.selectors.successMessage).innerText();
-        if (!successMessage.includes('successfully')) {
-            throw new Error(`Success message not found: ${successMessage}`);
-        }
+        // Assertion for success state (e.g., checking for a success banner)
+        const successText = await this.page.locator('.success-message').innerText();
+        expect(successText).toContain('Your items have been added to the cart');
     }
 
-    async whenUserNavigatesToDashboard() {
-        await this.page.goto('https://www.saucedemo.com/inventory.html');
-        await this.assertLoaded('dashboard');
+    async whenUserLogsOutAndLogsBackIn() {
+        // Simulate logout and re-login flow (requires navigation/re-entry of credentials)
+        await this.page.goto('https://www.saucedemo.com/');
+        // Re-enter login details if necessary for persistence check context
+    }
+
+    async thenPreviouslyEnteredDataShouldStillBeVisibleAndCorrect() {
+        // Assertion to verify data persistence (e.g., checking inventory list)
+        const itemText = await this.page.locator('.inventory-list').innerText();
+        expect(itemText).toContain('Sauce Labs Backpack');
+    }
+
+    async whenUserNavigatesToMainDashboard() {
+        // Assuming dashboard navigation is implicit after login
+        await this.page.goto('https://www.saucedemo.com/');
     }
 
     async thenAllExpectedUIComponentsShouldBePresentAndFunctional() {
-        // Placeholder for complex UI check (e.g., checking visibility of navigation bar)
-        const navBar = await this.page.locator(this.selectors.navBar);
-        await expect(navBar).toBeVisible();
+        // Check for key elements on the dashboard
+        await expect(this.page.locator('nav')).toBeVisible();
+        await expect(this.page.locator('.user-name')).toBeVisible();
     }
 
-    async whenUserAttemptsToNavigateToAdmin() {
+    async whenUserAttemptsToNavigateToAdminURL() {
         await this.page.goto('/admin');
     }
 
     async thenAccessShouldBeDeniedAndAuthorizationErrorShouldBeReturned() {
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('access denied') && !errorText.includes('permission')) {
-            throw new Error(`Expected access denied error not found. Found: ${errorText}`);
-        }
+        // Assertion for 403 or specific denial message
+        const response = await this.page.request.get('/admin');
+        expect(response.status()).toBe(403);
     }
 
-    async whenUserSearchesForProduct(productName) {
-        await this.page.fill(this.selectors.searchInput, productName);
+    async whenUserEntersDataIntoNumericalField(input) {
+        await this.quantityInput.fill(String(input));
     }
 
-    async whenUserClicksSearch() {
-        await this.page.click(this.selectors.searchButton);
+    async thenSystemShouldHandleInputGracefully(input) {
+        // This is a complex assertion based on the expected system behavior for 'abc' input
+        // We assert that an error state is reached if non-numeric data is entered into a numeric field.
+        await this.quantityInput.fill('abc');
+        const error = await this.page.locator('.error-message');
+        expect(error).toBeVisible();
     }
 
-    async thenSearchResultsShouldDisplayCorrectProduct() {
-        const results = await this.page.locator(this.selectors.productList).allTextContents();
-        if (results.length === 0 || !results.some(r => r.includes('Sauceboat'))) {
-            throw new Error("Search results did not display the expected product.");
-        }
+    async whenUserAttemptsToSubmitWithoutFillingRequiredFields() {
+        // Simulate attempting submission on the data input screen without filling fields
+        await this.page.click('Add to Cart'); // Assuming this triggers validation failure if fields are empty
     }
 
-    async whenUserAddsItemsToCart(productA, productB) {
-        await this.page.goto(`/inventory.html?item=Sauceboat&quantity=1`); // Simulate navigating to a product page first
-        await this.page.click(this.selectors.addToCartButton);
-        await this.page.goto(`/inventory.html?item=Sauceboat&quantity=1`); // Navigate back or handle context change
-        await this.page.click(this.selectors.addToCartButton); // Add second item
+    async thenValidationErrorsShouldAppearNextToAllMissingMandatoryFields() {
+        // Assertion for multiple errors appearing simultaneously
+        const errorCount = await this.page.locator('.error-message').count();
+        expect(errorCount).toBeGreaterThan(0);
     }
 
-    async thenTotalPriceCalculationShouldBeAccurate() {
-        const cartTotal = await this.page.locator(this.selectors.cartTotal).innerText();
-        // In a real scenario, we would compare this against expected calculated values based on product prices.
-        if (parseFloat(cartTotal) <= 0) {
-            throw new Error(`Cart total is zero or invalid: ${cartTotal}`);
-        }
-    }
-
-    async whenUserUpdatesQuantity(currentQuantity, newQuantity) {
-        await this.page.fill(this.selectors.quantityInput, String(newQuantity));
-    }
-
-    async whenUserSavesChange() {
-        await this.page.click(this.selectors.updateButton);
-    }
-
-    async thenCartTotalShouldReflectNewQuantityAndPrice() {
-        const newTotal = await this.page.locator(this.selectors.cartTotal).innerText();
-        // Assertion logic based on expected price change
-        if (newTotal === '0.00') {
-            throw new Error("Cart total did not update correctly after quantity change.");
-        }
-    }
-
-    async whenUserAttemptsToAddZeroQuantity() {
-        await this.page.fill(this.selectors.quantityInput, '0');
-    }
-
-    async thenSystemShouldRejectZeroQuantityAction() {
-        // Check for specific error message related to zero quantity
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('minimum quantity')) {
-            throw new Error(`Expected rejection message for zero quantity not found: ${errorText}`);
-        }
-    }
-
-    async whenUserSetsMinimumQuantity(minVal) {
-        await this.page.fill(this.selectors.quantityInput, String(minVal));
-    }
-
-    async thenSystemShouldAcceptMinimumQuantity() {
-        // Verify that the item was added successfully after setting minimum quantity (e.g., checking cart count)
-        const cartCount = await this.page.locator(this.selectors.cartItemCount).innerText();
-        if (parseInt(cartCount) === 0) {
-            throw new Error("Item failed to add when setting minimum quantity.");
-        }
-    }
-
-    async whenUserAttemptsToAccessInventoryWithoutLogin() {
-        await this.page.goto('/inventory.html');
-    }
-
-    async thenSystemShouldRedirectToLoginPageOrDisplayErrorMessage() {
-        // Check if the page content indicates a login prompt or error
-        const pageText = await this.page.locator('body').innerText();
-        if (!pageText.includes('sign in') && !pageText.includes('login')) {
-            throw new Error("Expected redirection to login page or an access denied message was not found.");
-        }
-    }
-
-    async whenUserAttemptsToSubmitWithEmptyFields() {
-        await this.page.click(this.selectors.submitButton);
-    }
-
-    async thenValidationErrorsShouldAppearForMissingFields() {
-        const errorElements = await this.page.locator('.error-message');
-        if (await errorElements.count() === 0) {
-            throw new Error("No validation errors were displayed for missing fields.");
-        }
-    }
-
-    async whenUserInputsNonNumericCharacters(text) {
-        await this.page.fill(this.selectors.numericInput, text);
-    }
-
-    async thenSystemShouldRejectNonNumericInput() {
-        // Check if the input field displays an error or rejects the submission
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('invalid format') && !errorText.includes('non-numeric')) {
-            throw new Error(`Expected rejection for non-numeric input not found: ${errorText}`);
-        }
-    }
-
-    async whenUserExecutesPositiveFlow(params) {
-        // This is a generalized step, specific implementation depends on the feature flow (e.g., checkout flow).
-        if (params.type === 'login') {
-            await this.whenUserEntersValidDataAndSubmitsForm(params.username, params.password);
-        } else if (params.type === 'dataEntry') {
-            // Implementation for data entry flow...
-        }
-    }
-
-    async thenProcessShouldBeCompletedSuccessfully() {
-        // Verification logic based on the specific feature's success criteria
-        const finalUrl = await this.page.currentUrl();
-        if (!finalUrl.includes('dashboard') && !finalUrl.includes('success')) {
-            throw new Error(`Flow did not complete successfully. Current URL: ${finalUrl}`);
-        }
-    }
-
-    async whenUserExecutesFlowWithNewData(newUserData) {
-        // Implementation for data persistence check flow...
-    }
-
-    async thenDataShouldBePersistedInDatabase() {
-        // Verification logic (often requires backend interaction or checking a persistent state indicator)
-        const currentUsername = await this.page.locator(this.selectors.usernameDisplay).innerText();
-        if (currentUsername !== newUserData.username) {
-            throw new Error("Data persistence check failed. Username mismatch.");
-        }
-    }
-
-    async whenUserAttemptsToPerformSensitiveAction() {
-        // Simulate inactivity or session timeout if applicable
-        await this.page.waitForTimeout(1000); // Simulating delay for timeout test
+    async whenUserRemainsInactiveForTimeoutPeriod() {
+        // Simulate inactivity (requires external timing or specific API call if session timeout is enforced)
+        await this.page.waitForTimeout(10000); // Placeholder for actual wait logic
     }
 
     async thenSystemShouldForceRelogin() {
-        // Verify redirection to login screen after timeout simulation
-        await this.page.reload(); // Force re-login check
-        await this.assertLoaded('loginPage');
+        // Assertion that a re-login prompt appears
+        await expect(this.page.locator('form')).toBeVisible();
+    }
+
+    async whenUserAttemptsToAccessFeatureWithoutAuthentication() {
+        await this.page.goto('/inventory.html');
+    }
+
+    async thenShouldBeRedirectedToLoginPage() {
+        // Assertion that the login page is displayed
+        await expect(this.page.locator('text=Login')).toBeVisible();
+    }
+
+    async whenUserAttemptsToNavigateToRandomURL(url) {
+        await this.page.goto(url);
+    }
+
+    async thenSystemShouldDisplayError404() {
+        // Assertion for 404 page content
+        const pageSource = await this.page.content();
+        expect(pageSource).toContain('404');
+    }
+
+    async whenUserEntersMinimumAllowedValue(value) {
+        await this.quantityInput.fill(String(value));
+    }
+
+    async thenSystemShouldAcceptMinimumInputAndProcessCorrectly() {
+        // Check if the item was added successfully after setting minimum quantity (e.g., 1)
+        await this.addToCartButton.click();
+        await expect(this.page.locator('.success-message')).toBeVisible();
+    }
+
+    async whenUserAttemptsToSetMaximumAllowedQuantity(value) {
+        await this.quantityInput.fill(String(value));
+    }
+
+    async thenSystemShouldDisplayStockLimitError() {
+        // Assertion that the system rejects adding items if stock limits are exceeded
+        await this.addToCartButton.click();
+        const error = await this.page.locator('.error-message');
+        expect(error).toBeVisible();
+    }
+
+    async whenUserEntersImproperlyFormattedEmail(email) {
+        // Assuming registration flow context for email validation
+        await this.page.fill('email_field', email); // Placeholder interaction
+    }
+
+    async thenClearValidationErrorMustBeDisplayedForEmailField() {
+        // Assertion that specific error message appears next to the email field
+        const emailError = await this.page.locator('.error-message').filter({ hasText: 'email' });
+        expect(emailError).toBeVisible();
+    }
+
+    async whenUserSearchesForNonExistentItem(searchTerm) {
+        await this.searchField.fill(searchTerm);
+        await this.page.click('Search');
+    }
+
+    async thenSystemShouldDisplayNoResultsFound() {
+        // Assertion for the 'No results found' message
+        const resultText = await this.page.locator('.no-results').innerText();
+        expect(resultText).toContain('No results found');
+    }
+
+    async whenUserAddsItemToCartSuccessfully(productName) {
+        // Simulate finding and adding a product
+        await this.page.click(`[data-testid="add-to-cart-${productName}"]`); // Example interaction
+    }
+
+    async thenFeedbackShouldBePositiveAndCartCounterShouldBeUpdated() {
+        // Verify success feedback and cart update
+        const success = await this.page.locator('.success-message').isVisible();
+        expect(success).toBe(true);
+        // Further check for cart count update if available on the page
+    }
+
+    async whenUserUpdatesQuantity(currentQuantity, newQuantity) {
+        await this.quantityInput.fill(String(newQuantity));
+    }
+
+    async thenCartTotalShouldReflectNewQuantityAndUpdatedPrice() {
+        // Assertion that the total reflects the change
+        const cartTotal = await this.page.locator('.cart-total').innerText();
+        expect(cartTotal).toContain('Updated Total'); // Placeholder check for dynamic update
+    }
+
+    async whenUserAttemptsToAccessAdminPanelAsStandardUser() {
+        await this.page.goto('/admin');
+    }
+
+    async thenSystemMustRedirectOrDisplayAccessDeniedMessage() {
+        // Assertion that access is denied (e.g., redirect to login or show 403)
+        const response = await this.page.request.get('/admin');
+        expect(response.status()).toBe(403);
+    }
+
+    async whenUserExecutesPositiveFlowWithNewData() {
+        // Simulate the full positive flow (Login -> Add -> Checkout)
+        await this.whenUserEntersValidUsernameAndPassword('standard_user', 'secret_sauce');
+        await this.whenUserClicksLoginButton();
+        await this.givenUserIsOnDataInputScreen();
+        await this.whenUserAddsItemToCartSuccessfully('Sauce Labs Backpack');
+        await this.whenUserClicksCheckoutButton();
+    }
+
+    async thenProcessShouldBeCompletedSuccessfully() {
+        // Assertion for successful checkout completion
+        const checkoutSuccess = await this.page.locator('.checkout-success').isVisible();
+        expect(checkoutSuccess).toBe(true);
+    }
+
+    async whenTransactionIsInterruptedByInternalError() {
+        // Simulate an error during a transaction (requires mocking or specific setup)
+        // In a real scenario, this would involve triggering a known failure point.
+        await this.page.click('some_error_trigger'); // Placeholder for error trigger
+    }
+
+    async thenSystemShouldRollbackState() {
+        // Assertion that the state reverts to the previous valid state
+        const currentState = await this.page.locator('.cart-items').innerText();
+        expect(currentState).toContain('0 items'); // Expecting rollback to empty state if transaction failed
+    }
+
+    async whenUserAttemptsToAccessInventoryWithoutAuthentication() {
+        await this.page.goto('/inventory.html');
+    }
+
+    async thenShouldBeRedirectedToLoginPageOrDisplayErrorMessage() {
+        // Assertion that the user is redirected or sees an error message
+        const pageSource = await this.page.content();
+        expect(pageSource).toContain('Login');
     }
 
     async whenUserAttemptsToAccessFeatureWithoutPermission() {
         await this.page.goto('/admin');
     }
 
-    async thenSystemShouldReceivePermissionError() {
-        // Verify the specific 403 or permission error message is displayed
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('permission') && !errorText.includes('denied')) {
-            throw new Error(`Expected permission error not found: ${errorText}`);
-        }
+    async thenShouldReceivePermissionError403() {
+        // Assertion for 403 error specifically on unauthorized access attempt
+        const response = await this.page.request.get('/admin');
+        expect(response.status()).toBe(403);
     }
 
-    async whenUserAttemptsToSubmitWithInvalidFormat() {
-        await this.page.fill(this.selectors.numericInput, 'abc');
-        await this.page.click(this.selectors.submitButton);
+    async whenUserExecutesFlowWithRestrictedProfile() {
+        // Simulate executing a feature requiring 'Editor' permission as 'Reader'
+        await this.page.goto('/some_feature');
     }
 
-    async thenSystemShouldRejectMalformedData() {
-        // Verify that the system correctly rejected the non-numeric input
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('invalid format') && !errorText.includes('non-numeric')) {
-            throw new Error(`Expected rejection for malformed data not found: ${errorText}`);
-        }
+    async thenFunctionalityShouldBeBlocked() {
+        // Assertion that the action is blocked
+        const error = await this.page.locator('.access-denied');
+        expect(error).toBeVisible();
     }
 
-    async whenUserExecutesOperation() {
-        // Generic action execution
-        await this.page.click(this.selectors.actionButton);
+    async whenUserEntersTextInNumericField(text) {
+        await this.quantityInput.fill(text);
     }
 
-    async thenResponseTimeShouldBeUnderThreeSeconds() {
-        const responseTime = await this.page.evaluate(() => window.performance.timing.domInteractive); // Placeholder for actual timing mechanism if using Playwright context timing
-        // In a real setup, use Playwright's built-in tracing or specific timing APIs.
-        if (responseTime > 3000) {
-            throw new Error(`Operation took too long: ${responseTime}ms`);
-        }
+    async thenSystemShouldRejectInputWithFormatError() {
+        // Assertion that non-numeric input results in an error
+        await this.quantityInput.fill('abc');
+        const error = await this.page.locator('.error-message');
+        expect(error).toBeVisible();
     }
 
-    async whenUserAttemptsToAccessInventoryWithoutAuth() {
-        await this.page.goto('/inventory.html');
+    async whenUserExecutesOperationAndMeasuresTime() {
+        // Measure the time taken for a major operation
+        const startTime = Date.now();
+        await this.page.click('some_operation_trigger'); // Placeholder action
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        return duration;
     }
 
-    async thenSystemShouldRedirectToLoginPageOrErrorMessageOnNoAuth() {
-        // Verify redirection behavior for unauthenticated access to inventory
-        const currentUrl = await this.page.currentUrl();
-        if (!currentUrl.includes('login') && !currentUrl.includes('/inventory')) {
-            throw new Error(`Expected redirection to login or error, but landed on: ${currentUrl}`);
-        }
+    async thenResponseTimeShouldBeLessThanThreeSeconds(duration) {
+        expect(duration).toBeLessThan(3000);
     }
 
-    async whenUserInsertsMinimumValue(minVal) {
-        await this.page.fill(this.selectors.quantityInput, String(minVal));
+    async whenUserLogsInWithInvalidPassword() {
+        await this.whenUserEntersValidUsernameAndPassword('standard_user', 'wrong_password');
+        await this.whenUserClicksLoginButton();
     }
 
-    async thenSystemShouldAcceptMinimumInput() {
-        // Verify the action was successful (e.g., item added to cart)
-        const cartCount = await this.page.locator(this.selectors.cartItemCount).innerText();
-        if (parseInt(cartCount) === 0) {
-            throw new Error("Minimum quantity input failed to result in an item addition.");
-        }
+    async thenErrorMessageShouldStateInvalidCredentials() {
+        // Assertion for the specific error message on invalid login
+        const error = await this.page.locator('.error-message');
+        expect(error).toHaveText('Invalid credentials');
     }
 
-    async whenUserInsertsMaximumValue(maxVal) {
-        await this.page.fill(this.selectors.quantityInput, String(maxVal));
+    async whenUserAttemptsToRegisterWithInvalidEmail() {
+        await this.whenUserEntersValidUsernameAndPassword('new_user', 'password'); // Assuming registration context
+        await this.whenUserEntersImproperlyFormattedEmail('invalid-email');
+        await this.page.click('Register');
     }
 
-    async thenSystemShouldDisplayStockLimitError() {
-        // Verify the system displayed an error related to stock limits
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('stock limit') && !errorText.includes('maximum')) {
-            throw new Error(`Expected stock limit error not found: ${errorText}`);
-        }
+    async thenSystemShouldDisplayValidationErrorForEmailField() {
+        // Assertion for the specific email validation error
+        const emailError = await this.page.locator('.error-message').filter({ hasText: 'email' });
+        expect(emailError).toBeVisible();
     }
 
-    async whenUserAttemptsToPerformCheckout() {
-        await this.page.click(this.selectors.checkoutButton);
+    async whenUserVerifiesCartPersistenceAcrossSessions() {
+        // Simulate logout/login and check cart state
+        await this.whenUserLogsOutAndLogsBackIn();
+        await this.page.goto('/cart');
     }
 
-    async thenSystemShouldNavigateToCheckoutPage() {
-        await this.page.waitForURL(/checkout/);
+    async thenPreviouslyAddedItemsShouldPersist() {
+        // Assertion that items remain in the cart after session change
+        const cartItems = await this.page.locator('.cart-items').innerText();
+        expect(cartItems).toContain('Sauce Labs Backpack');
     }
 
-    async thenCartPersistenceAcrossSessions() {
-        // This requires external session management setup, but we verify the UI state post-login/logout cycle.
-        await this.page.goto('https://www.saucedemo.com/'); // Ensure logged out state first (if applicable)
-        // Simulate logging in and checking cart persistence...
-        const cartUrl = await this.page.locator(this.selectors.cartLink).click();
-        await this.page.waitForURL(/cart/);
-
-        // If we assume the session persists across the test run:
-        const itemsInCart = await this.page.locator(this.selectors.cartItemCount).innerText();
-        if (parseInt(itemsInCart) === 0) {
-            throw new Error("Cart persistence check failed: Cart is empty after re-login.");
-        }
+    async whenUserAttemptsToAccessInventoryWithoutAuthenticationAndRedirects() {
+        await this.whenUserAttemptsToAccessInventoryWithoutAuthentication();
     }
 
-    async whenUserAttemptsToAccessInventoryWithoutAuthAndVerifyDenial() {
-        await this.whenUserAttemptsToAccessInventoryWithoutLogin();
-        await this.thenSystemShouldRedirectToLoginPageOrErrorMessageOnNoAuth();
-    }
-
-    async whenUserLogsInWithInvalidUsernameAndPassword(username, password) {
-        await this.whenUserEntersValidDataAndSubmitsForm(username, password);
-    }
-
-    async thenSystemShouldDisplayInvalidCredentialsError() {
-        const errorText = await this.page.locator(this.selectors.errorMessage).innerText();
-        if (!errorText.includes('Invalid credentials')) {
-            throw new Error(`Expected 'Invalid credentials' error not found: ${errorText}`);
-        }
-    }
-
-    async whenUserLogsInSuccessfully(username, password) {
-        await this.whenUserEntersValidDataAndSubmitsForm(username, password);
-    }
-
-    async thenUserShouldBeRedirectedToDashboard() {
-        await this.page.waitForURL(/inventory.html/);
-    }
-
-    async whenUserAddsItemToCartSuccessfully(productName) {
-        // This assumes a specific flow where the product is selected and added.
-        await this.page.goto(`/inventory.html?item=Sauceboat&quantity=1`);
-        await this.page.click(this.selectors.addToCartButton);
-    }
-
-    async thenUserShouldReceiveSuccessFeedback() {
-        // Verify visual feedback (e.g., success banner)
-        const successBanner = await this.page.locator(this.selectors.successMessage);
-        await expect(successBanner).toBeVisible();
-    }
-
-    async whenUserAdjustsQuantityAndConfirms(currentQty, newQty) {
-        await this.whenUserUpdatesQuantity(currentQty, newQty);
-        await this.whenUserSavesChange();
-    }
-
-    async thenQuantityShouldBeUpdatedCorrectly() {
-        const finalQuantity = await this.page.locator(this.selectors.quantityInput).innerText();
-        if (finalQuantity !== String(newQty)) {
-            throw new Error(`Quantity update failed. Expected ${newQty}, got ${finalQuantity}`);
-        }
-    }
-
-    async whenUserExecutesFullPurchaseFlow() {
-        // Simulating the full flow: Add -> Cart -> Checkout
-        await this.whenUserAddsItemsToCart('Product A', 'Product B');
-        await this.whenUserAttemptsToPerformCheckout();
-    }
-
-    async thenSystemShouldNavigateToCheckoutPage() {
-        await this.page.waitForURL(/checkout/);
+    async thenShouldBeRedirectedToLoginPageOrErrorMessage() {
+        // Assertion for redirection behavior on unauthorized access
+        const pageSource = await this.page.content();
+        expect(pageSource).toContain('Login');
     }
 }
+
+export default SAUCEDEMOPage;

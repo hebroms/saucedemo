@@ -1,21 +1,34 @@
-const { faker } = require('@faker-js/faker');
+import { GenericData } from '../interfaces/generic.interface';
+import { faker } from '@faker-js/faker';
 
-/**
- * Factory for generating user form data.
- */
-const createLoginForm = () => {
-    const username = faker.person.fullName();
-    // Credentials must come from process.env as per instructions
-    const usernameFromEnv = process.env.TEST_USERNAME || 'default_user';
-    const passwordFromEnv = process.env.TEST_PASSWORD || 'default_password';
+class TestDataFactory {
+  /**
+   * Generates standard login credentials, prioritizing environment variables.
+   * @returns {GenericData} The generated user and password data.
+   */
+  static loginCredentials(): GenericData {
+    const username = process.env.USERNAME || faker.internet.userName();
+    const password = process.env.PASSWORD || faker.internet.password(12);
 
     return {
-        'user-name': username,
-        'password': passwordFromEnv,
-        'login-button': `submit_${username.replace(/\s/g, '_')}`
+      username: username,
+      password: password,
     };
-};
+  }
 
-module.exports = {
-    createLoginForm
-};
+  /**
+   * Generates a unique set of credentials using Faker as the primary source.
+   * @returns {GenericData} The generated user and password data.
+   */
+  static generateUniqueCredentials(): GenericData {
+    const username = faker.internet.userName();
+    const password = faker.internet.password(16);
+
+    return {
+      username: username,
+      password: password,
+    };
+  }
+}
+
+export { TestDataFactory; }
