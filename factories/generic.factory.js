@@ -1,20 +1,35 @@
 import { GenericData } from '../interfaces/generic.interface';
+import { faker } from '@faker-js/faker';
 
 class TestDataFactory {
-    /**
-     * Generates data based on the discovered form fields.
-     * @returns {GenericData} The generated test data.
-     */
-    static createLoginData(): GenericData {
-        // Data derived directly from the input description
-        const userData = {
-            username: "João QA Silva",
-            password: "QortexTest@2024!",
-            submitButton: "qortex_qa_user"
-        };
+  /**
+   * Generates standard test user credentials.
+   * Prioritizes environment variables for sensitive data, falling back to Faker or random generation.
+   * @returns {GenericData} The generated user credentials.
+   */
+  static standardUser(): GenericData {
+    const username = process.env.USERNAME || faker.person.fullName();
+    const password = process.env.PASSWORD || faker.internet.password(12);
 
-        return userData;
-    }
+    return {
+      username: username,
+      password: password,
+    };
+  }
+
+  /**
+   * Generates a unique set of credentials using Faker for more realistic data.
+   * @returns {GenericData} A randomly generated user and password.
+   */
+  static randomUser(): GenericData {
+    const username = faker.internet.userName();
+    const password = faker.internet.password(16);
+
+    return {
+      username: username,
+      password: password,
+    };
+  }
 }
 
-export { TestDataFactory };
+export { TestDataFactory; }
