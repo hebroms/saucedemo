@@ -1,34 +1,34 @@
 const { faker } = require('@faker-js/faker');
 
 /**
- * Factory for generating unique generic user login data.
- * @returns {object} Test data for a generic login form.
+ * Factory for generating a unique user name.
+ * @returns {string} A unique user name.
  */
-function createGenericLoginData() {
-    const uniqueId = faker.string.uuid();
-    return {
-        username: faker.person.fullName(),
-        password: faker.internet.password(12),
-        submitButton: `login_${uniqueId}`,
-        // Optionally, if the system requires specific formats based on the input example:
-        // username: faker.person.fullName(), // e.g., João QA Silva style
-        // password: faker.internet.password(12), // e.g., QortexTest@2024! style
-    };
+function createUserName() {
+    // Use faker for realistic names, appended with a unique identifier
+    return `${faker.person.firstName()} ${faker.person.lastName()}${Date.now()}`;
 }
 
 /**
- * Factory for generating a single unique user credential set.
- * @returns {object} Unique username and password.
+ * Factory for generating a unique password.
+ * @returns {string} A unique password.
  */
-function createUniqueCredentials() {
-    const uniqueId = faker.string.uuid();
-    return {
-        username: `testuser_${uniqueId}`,
-        password: faker.internet.password(16),
-    };
+function createPassword() {
+    // Use faker for strong passwords, appended with a unique identifier
+    return `${faker.internet.password()}!${Date.now()}`;
+}
+
+/**
+ * Factory for generating a unique login action/value.
+ * @returns {string} A unique login button value.
+ */
+function createLoginAction() {
+    // Generate a unique action string
+    return `login_${faker.word().toUpperCase()}_${Date.now()}`;
 }
 
 module.exports = {
-    createGenericLoginData,
-    createUniqueCredentials
+    createUserName,
+    createPassword,
+    createLoginAction
 };

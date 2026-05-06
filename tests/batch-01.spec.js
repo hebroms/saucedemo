@@ -1,175 +1,104 @@
-import { test, expect } from '@playwright/test';
-import * as PageObjects from '../pages/page-objects'; // Assuming page objects are structured here
+import { SAUCEDEMOPage } from '../pages/s-a-u-c-e-d-e-m-o.page';
+import * as PageObjects from '../pages/page-objects';
 import * as GenericFactory from '../factories/generic.factory';
 
-// Define the base URL for context (though usually handled in setup)
-const BASE_URL = 'https://www.saucedemo.com/';
+test('Verifying a business rule related to data quantity constraints', async ({ page, SAUCEDEMOPage }) => {
+  const data = GenericFactory.getValidUserCredentials();
+  await page.goto('https://www.saucedemo.com/');
+  await SAUCEDEMOPage.login(page, data.username, data.password);
 
-test.describe('Funcionalidade: Navegação e Busca de Produtos', () => {
-    let page;
+  // Given the user is attempting to purchase an item
+  await page.goto('/inventory.html');
 
-    test.beforeEach(async ({ page: browser }) => {
-        page = await browser.newPage();
-        await page.goto(BASE_URL);
-    });
+  // When the user attempts to set the quantity below the minimum required amount (e.g., quantity = -1)
+  await page.locator('#quantity').fill('-1');
+  await page.locator('button:has-text("Add to cart")').click();
 
-    test('Visualizar a lista de produtos', async () => {
-        // Setup: Login (assuming login is required to see inventory)
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
-
-        // Action & Assertion
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        
-        // Check if products are visible (assuming the list loads successfully)
-        const productNames = await page.locator('.inventory_item').allTextContents();
-        expect(productNames).toHaveLength(4); // Expecting standard items count
-        expect(productNames).toContain('Sauce Labs Backpack');
-        expect(productNames).toContain('Sauce Labs Bolt T-Shirt');
-    });
-
-    test('Ordenar produtos por nome (A a Z)', async () => {
-        // Setup: Login
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
-
-        // Action: Navigate to inventory and sort
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        await page.click('label:has-text("Name (A to Z)")'); // Selecting the sorting option
-
-        // Assertion: Check if the list is sorted alphabetically
-        const productElements = await page.locator('.inventory_item').all();
-        
-        // Verify order by checking the text content of the first few items
-        expect(await page.locator('.inventory_item').first()).toHaveText('Sauce Labs Backpack');
-        expect(await page.locator('.inventory_item').nth(1)).toHaveText('Sauce Labs Bike Light');
-    });
+  // Then the system must reject the transaction and display a constraint error
+  const errorMessage = await page.locator('.error').innerText();
+  expect(errorMessage).toContain('Quantity must be greater than or equal to 1');
 });
 
-test.describe('Funcionalidade: Adicionar Itens ao Carrinho', () => {
-    let page;
+test('Attempting login with an invalid password', async ({ page, SAUCEDEMOPage }) => {
+  await page.goto('https://www.saucedemo.com/');
 
-    test.beforeEach(async ({ page: browser }) => {
-        page = await browser.newPage();
-        await page.goto(BASE_URL);
-    });
+  // Given the user is on the login page
+  await page.goto('/login');
 
-    test('Adicionar um item ao carrinho com sucesso', async () => {
-        // Setup: Login
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
+  // When the user enters a valid username and an incorrect password
+  await page.locator('#user-name').fill('standard_user');
+  await page.locator('#password').fill('wrong_password');
+  await page.locator('button:has-text("Login")').click();
 
-        // Action: Add item
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        await page.click(`text=${'Sauce Labs Backpack'}`).locator('add-to-cart-button');
-
-        // Assertion: Check cart update
-        await expect(page.locator('#shopping_cart_link')).toHaveText('3'); // Assuming initial state is 0, now it should be 1
-        await expect(page.locator('.shopping_cart_item')).toContainText('Sauce Labs Backpack');
-    });
-
-    test('Adicionar múltiplos itens ao carrinho', async () => {
-        // Setup: Login
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
-
-        // Action: Add multiple items
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        
-        // Add Backpack
-        await page.click(`text=${'Sauce Labs Backpack'}`).locator('add-to-cart-button');
-        
-        // Add Bike Light
-        await page.click(`text=${'Sauce Labs Bike Light'}`).locator('add-to-cart-button');
-
-        // Assertion: Check if both items are in the cart
-        const backpackItem = page.locator('.shopping_cart_item', { hasText: 'Sauce Labs Backpack' });
-        const bikeLightItem = page.locator('.shopping_cart_item', { hasText: 'Sauce Labs Bike Light' });
-
-        await expect(backpackItem).toBeVisible();
-        await expect(bikeLightItem).toBeVisible();
-    });
+  // Then an appropriate error message regarding invalid credentials should be displayed
+  const errorMessage = await page.locator('.error').innerText();
+  expect(errorMessage).toContain('Invalid credentials');
 });
 
-test.describe('Funcionalidade: Gerenciamento do Carrinho', () => {
-    let page;
+test('Successfully submitting a form/data entry via the feature', async ({ page, SAUCEDEMOPage }) => {
+  const data = GenericFactory.getValidUserCredentials();
+  await page.goto('https://www.saucedemo.com/');
+  await SAUCEDEMOPage.login(page, data.username, data.password);
 
-    test.beforeEach(async ({ page: browser }) => {
-        page = await browser.newPage();
-        await page.goto(BASE_URL);
-    });
+  // Given the user is on the data input screen (Inventory page)
+  await page.goto('/inventory.html');
 
-    test('Visualizar o conteúdo do carrinho', async () => {
-        // Setup: Login and add items (using a fresh login context for independence)
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
+  // When the user enters valid, non-empty data and submits the form
+  const itemName = 'Sauce Labs Backpack';
+  await page.locator('#item_name').fill(itemName);
+  await page.locator('#quantity').fill('2');
+  await page.locator('button:has-text("Add to cart")').click();
 
-        // Add items to ensure the cart is populated for this test
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        await page.click(`text=${'Sauce Labs Backpack'}`).locator('add-to-cart-button');
-        await page.click(`text=${'Sauce Labs Bike Light'}`).locator('add-to-cart-button');
+  // Then a success message should be displayed and data should be saved
+  const cartItemText = await page.locator('.inventory_item').first().innerText();
+  expect(cartItemText).toContain(itemName);
+  await expect(page.locator('.success')).toBeVisible();
+});
 
-        // Action: Navigate to cart
-        await page.click('#shopping_cart_link');
+test('Verifying that submitted data persists across sessions', async ({ page, SAUCEDEMOPage }) => {
+  const data = GenericFactory.getValidUserCredentials();
 
-        // Assertion: Check items, quantities, and total (assuming standard setup)
-        await expect(page.locator('.shopping_cart_item')).toHaveCount(2);
-        // Further assertions on specific item details would require checking text/price elements if available
-    });
+  // Given the user successfully saved data in Session A
+  await page.goto('https://www.saucedemo.com/');
+  await SAUCEDEMOPage.login(page, data.username, data.password);
+  await page.goto('/inventory.html');
 
-    test('Remover um item do carrinho', async () => {
-        // Setup: Login and add the item to be removed
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
+  const itemToSave = 'Sauce Labs Backpack';
+  await page.locator('#item_name').fill(itemToSave);
+  await page.locator('#quantity').fill('5');
+  await page.locator('button:has-text("Add to cart")').click();
+  await expect(page.locator('.success')).toBeVisible();
 
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        await page.click(`text=${'Sauce Labs Backpack'}`).locator('add-to-cart-button');
+  // When the user logs out and logs back in (or navigates back)
+  await page.locator('#logout_button').click();
+  await page.goto('https://www.saucedemo.com/');
+  await SAUCEDEMOPage.login(page, data.username, data.password);
 
-        // Action: Remove item
-        await page.click('.remove'); // Assuming the remove button selector is '.remove'
+  // Then the previously entered data should still be visible and correct
+  await page.goto('/inventory.html');
+  const savedItemText = await page.locator('#item_name').inputValue();
+  const savedQuantity = await page.locator('#quantity').inputValue();
 
-        // Assertion: Check if the item is removed from the cart view
-        await expect(page.locator('.shopping_cart_item', { hasText: 'Sauce Labs Backpack' })).not.toBeVisible();
-    });
+  expect(savedItemText).toBe(itemToSave);
+  expect(savedQuantity).toBe('5');
+});
 
-    test('Ajustar a quantidade de um item no carrinho', async () => {
-        // Setup: Login and add the item with initial quantity 1
-        const user = await GenericFactory.createUserData('testuser', 'secret_sauce');
-        await page.goto(`${BASE_URL}/login`);
-        await page.fill('#user-name', user.username);
-        await page.fill('#password', user.password);
-        await page.click('#login-button');
+test('Verifying access to previously established user dashboard elements', async ({ page, SAUCEDEMOPage }) => {
+  const data = GenericFactory.getValidUserCredentials();
+  await page.goto('https://www.saucedemo.com/');
+  await SAUCEDEMOPage.login(page, data.username, data.password);
 
-        await PageObjects.inventoryPage.navigateToInventory(page);
-        await page.click(`text=${'Sauce Labs Backpack'}`).locator('add-to-cart-button');
+  // Given the user is logged in
+  await page.goto('/inventory.html'); // Navigating to a key dashboard area
 
-        // Action: Adjust quantity to 2
-        // We need to find the quantity input field associated with the item in the cart view
-        const backpackItemRow = page.locator('.shopping_cart_item', { hasText: 'Sauce Labs Backpack' });
-        
-        // Click the quantity selector (assuming it's a button or input within the row)
-        await backpackItemRow.locator('.quantity').selectOption('2'); // Or use direct input if structure allows
+  // When the user navigates to the main dashboard (implicitly checked by being logged in)
+  // We check for core elements that confirm successful session establishment
+  
+  // Then all expected UI components (e.g., navigation bar, profile link) should be present and functional
+  const navBar = page.locator('nav');
+  const profileLink = page.locator('#user-name');
 
-        // Assertion: Check if the quantity displayed is 2
-        await expect(backpackItemRow).toHaveText('Sauce Labs Backpack'); // Ensure item is still visible
-        // Note: Actual assertion depends heavily on how Sauce Demo implements quantity adjustment. We assert based on expected outcome.
-    });
+  expect(navBar).toBeVisible();
+  expect(profileLink).toBeVisible();
+  expect(profileLink).toHaveText(data.username);
 });
