@@ -5,172 +5,139 @@ import { ENVIRONMENTS } from '../constants/environment.constants';
 import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
-import { test, expect, before, after } from '@playwright/test';
+describe('SAUCEDEMO Feature Tests', () => {
+    let loginPage: SAUCEDEMOPage;
+    let dataPage: SAUCEDEMOPage;
+    let genericFactory: GenericFactory;
 
-// Setup for Page Objects and Factories
-let loginPage: SAUCEDEMOPage;
-let inventoryPage: SAUCEDEMOPage; // Assuming this page handles the main feature flow
+    // Setup common objects and pages
+    beforeAll(() => {
+        loginPage = new SAUCEDEMOPage(setup); // Assuming setup handles context/browser initialization
+        dataPage = new SAUCEDEMOPage(setup);
+        genericFactory = new GenericFactory();
+    });
 
-// Setup Factory (if needed for data generation)
-let factory: GenericFactory;
+    // Setup for login before each test
+    beforeEach(async () => {
+        await loginPage.login(ENVIRONMENTS.LOGIN_USER, ENVIRONMENTS.LOGIN_PASS);
+        // Ensure we start on a known state if necessary, though most tests will navigate explicitly
+    });
 
-// Define environment variables for context
-const APP_URL = ROUTES.BASE_URL;
-const LOGIN_ROUTE = ROUTES.LOGIN_ROUTE;
-const INVENTORY_ROUTE = ROUTES.INVENTORY_ROUTE;
+    // --- Scenario 1: Boundary Test: Edge Case Data Type Handling ---
+    test('Boundary Test: Edge Case Data Type Handling', async () => {
+        await dataPage.navigate(ROUTES.DATA_ENTRY);
+        // Simulate inputting non-numeric characters into a numeric field
+        await dataPage.fillNumericField('abc');
+        // Assert that the system handles the input gracefully (e.g., displays an error)
+        await dataPage.assertInputError(); 
+    });
 
+    // --- Scenario 2: Negative Test: Empty Field Submission ---
+    test('Negative Test: Empty Field Submission', async () => {
+        await dataPage.navigate(ROUTES.SUBMISSION);
+        // Attempt to submit without filling required fields
+        await dataPage.submitForm();
+        // Assert that validation errors appear next to all missing mandatory fields
+        await dataPage.assertValidationErrorsExist(); 
+    });
 
-before(async ({ page }) => {
-  // Initialize Page Objects
-  loginPage = new SAUCEDEMOPage(page);
-  inventoryPage = new SAUCEDEMOPage(page);
+    // --- Scenario 3: Access Test: Session Timeout Handling ---
+    test('Access Test: Session Timeout Handling', async () => {
+        // Given the user has an active session (covered by beforeEach)
+        
+        // When the user remains inactive for the defined timeout period
+        await page.waitForTimeout(ENVIRONMENTS.SESSION_TIMEOUT_MS + 1000); 
 
-  // Setup Factory
-  factory = new GenericFactory();
+        // And attempts to perform a sensitive action
+        await dataPage.attemptSensitiveAction();
+        
+        // Then the system should force a re-login
+        await dataPage.assertReauthenticationRequired();
+    });
 
-  // Global setup: Ensure we start at the base URL if necessary, though page object methods should handle navigation.
-});
+    // --- Scenario 4: Verificar tratamento de entrada negativa (Input Validation) ---
+    test('Verificar tratamento de entrada negativa (Input Validation)', async () => {
+        await dataPage.navigate(ROUTES.DATA_ENTRY);
+        // Tentar executar com campos vazios ou inválidos
+        await dataPage.fillAllFields(''); 
+        
+        // Then O sistema deve retornar uma mensagem de erro válida
+        await dataPage.submitForm();
+        await dataPage.assertErrorMessage(ALERT_MESSAGES.VALIDATION_ERROR);
+    });
 
-test.describe('SAUCEDEMO Feature Tests', () => {
+    // --- Scenario 5: Verificação de erro em comunicação externa (Regra de Negócio) ---
+    test('Verificação de erro em comunicação externa (Regra de Negócio)', async () => {
+        // Given O serviço externo está simulando falha de resposta
+        await dataPage.simulateExternalServiceFailure();
 
-  // --- Scenario 1: Boundary Test: Edge Case Data Type Handling ---
-  test('Boundary Test: Testing input with non-numeric or mixed data types in a numeric field', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
+        // When Executa a funcionalidade que depende desse serviço
+        await dataPage.executeDependentFunctionality();
 
-    // Assuming the page object has methods to interact with specific fields and handle validation results
-    await inventoryPage.enterNumericInput('someField', 'abc'); 
-    
-    // Assertion based on expected error handling (assuming the system rejects invalid input)
-    await expect(inventoryPage.getErrorMessage('someField')).toContain(ALERT_MESSAGES.INVALID_INPUT);
-  });
+        // Then O sistema deve tratar o erro e exibir uma mensagem de indisponibilidade
+        await dataPage.assertErrorMessage(ALERT_MESSAGES.SERVICE_UNAVAILABLE);
+    });
 
-  // --- Scenario 2: Negative Test: Empty Field Submission ---
-  test('Negative Test: Attempting to submit a form with mandatory fields empty', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
+    // --- Scenario 6: Fluxo de uso positivo: Execução básica da funcionalidade ---
+    test('Fluxo de uso positivo: Execução básica da funcionalidade', async () => {
+        await dataPage.navigate(ROUTES.DATA_ENTRY);
+        // And Fornece todos os parâmetros exigidos
+        await dataPage.fillAllFields(genericFactory.generateValidData()); 
+        
+        // Then O processo deve ser concluído com sucesso
+        await dataPage.submitForm();
+        await dataPage.assertSuccessMessage();
+    });
 
-    // Navigate to the submission screen (assuming this is handled by the page object)
-    await inventoryPage.navigate(); 
+    // --- Scenario 7: Verificação de persistência de dados após o uso positivo (Regressão) ---
+    test('Verificação de persistência de dados após o uso positivo (Regressão)', async () => {
+        const newData = genericFactory.generateNewData();
+        
+        // Given Usuário padrão logado (covered by beforeEach)
+        
+        // When Executa o fluxo positivo com novos dados
+        await dataPage.navigate(ROUTES.DATA_ENTRY);
+        await dataPage.fillAllFields(newData);
+        await dataPage.submitForm();
 
-    // Attempt submission without filling required fields
-    await inventoryPage.submitFormWithoutData();
+        // And Verifica a visualização dos dados posteriormente
+        await dataPage.navigate(ROUTES.VIEW_DATA);
+        await dataPage.verifyDataPersistence(newData); 
+    });
 
-    // Assertion: Check for validation errors next to all missing mandatory fields
-    const errors = await inventoryPage.getValidationErrors();
-    expect(errors).toHaveLength(3); // Assuming 3 mandatory fields exist
-    expect(errors).toEqual(expect.arrayContaining([
-      ALERT_MESSAGES.MISSING_FIELD_1,
-      ALERT_MESSAGES.MISSING_FIELD_2,
-      ALERT_MESSAGES.MISSING_FIELD_3,
-    ]));
-  });
+    // --- Scenario 8: Verificação de estado após falha de transação (Regressão) ---
+    test('Verificação de estado após falha de transação (Regressão)', async () => {
+        const transactionData = genericFactory.generateValidTransactionData();
+        
+        // Given Uma transação foi iniciada com dados válidos
+        await dataPage.startTransaction(transactionData);
 
-  // --- Scenario 3: Access Test: Session Timeout Handling ---
-  test('Access Test: Verifying session expiration and re-authentication requirement', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
+        // When A transação é interrompida por um erro interno
+        await dataPage.simulateInternalErrorDuringTransaction();
 
-    // Simulate inactivity (This requires interaction with the application state or waiting mechanism)
-    await inventoryPage.simulateInactivity(300000); // Wait for 5 minutes timeout simulation
+        // Then O sistema deve reverter o estado para o anterior (rollback)
+        await dataPage.assertTransactionRolledBack(); 
+    });
 
-    // Attempt to perform a sensitive action
-    await inventoryPage.attemptSensitiveAction();
+    // --- Scenario 9: Teste de acesso de usuário não autenticado (Segurança) ---
+    test('Teste de acesso de usuário não autenticado (Segurança)', async () => {
+        // Given O usuário não está logado (resetting session state implicitly or explicitly)
+        await page.goto(ROUTES.SOME_PROTECTED_ROUTE);
 
-    // Assertion: System should force a re-login
-    await expect(inventoryPage.isLoggedIn()).toBe(false);
-    await expect(inventoryPage.getErrorMessage('session_expired')).toBeVisible();
-  });
+        // When Tenta acessar a URL da feature
+        // Then Deve ser redirecionado para a tela de login
+        await dataPage.assertRedirectToLogin(); 
+    });
 
-  // --- Scenario 4: Verificar tratamento de entrada negativa (Input Validation) ---
-  test('Verificar tratamento de entrada negativa (Input Validation)', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
+    // --- Scenario 10: Verificação de acesso restrito (Segurança/Acesso) ---
+    test('Verificação de acesso restrito (Segurança/Acesso)', async () => {
+        // Given Usuário padrão logado (assuming successful login via beforeEach)
+        
+        // When Tenta acessar a URL da feature diretamente (sem passar pelo fluxo correto)
+        const restrictedRoute = ROUTES.RESTRICTED_FEATURE;
+        await page.goto(restrictedRoute);
 
-    // Attempt to submit with empty fields
-    await inventoryPage.submitFormWithEmptyFields();
-
-    // Assertion: System should return a valid error message
-    const errorMessage = await inventoryPage.getSubmissionError();
-    expect(errorMessage).toContain(ALERT_MESSAGES.VALIDATION_FAILED);
-  });
-
-  // --- Scenario 5: Verificação de erro em comunicação externa (Regra de Negócio) ---
-  test('Verificação de erro em comunicação externa (Regra de Negócio)', async ({ page }) => {
-    // Setup: Simulate external service failure (This requires mocking or setting up a specific environment state within the Page Object context)
-    await inventoryPage.simulateExternalServiceFailure();
-
-    // Action: Execute the functionality that depends on this service
-    await inventoryPage.executeDependentFunction();
-
-    // Assertion: System should treat the error and display an unavailability message
-    const error = await inventoryPage.getSystemError();
-    expect(error).toContain(ALERT_MESSAGES.SERVICE_UNAVAILABLE);
-  });
-
-  // --- Scenario 6: Fluxo de uso positivo: Execução básica da funcionalidade ---
-  test('Fluxo de uso positivo: Execução básica da funcionalidade', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
-
-    // Action: Start the process
-    await inventoryPage.startProcess();
-
-    // Action: Provide all required parameters (using factory data)
-    const validData = await factory.generateValidInventoryData();
-    await inventoryPage.provideParameters(validData);
-
-    // Assertion: The process should be completed successfully
-    await inventoryPage.verifySuccess();
-    await expect(inventoryPage.isProcessSuccessful()).toBe(true);
-  });
-
-  // --- Scenario 7: Verificação de persistência de dados após o uso positivo (Regressão) ---
-  test('Verificação de persistência de dados após o uso positivo (Regressão)', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
-
-    // Action: Execute the positive flow with new data
-    const newData = await factory.generateNewInventoryData();
-    await inventoryPage.executePositiveFlow(newData);
-
-    // Action: Verify the visualization of the data later
-    await inventoryPage.verifyDataPersistence(newData);
-
-    // Assertion: The data must be persisted in the database
-    await expect(inventoryPage.isDataPersisted(newData)).toBe(true);
-  });
-
-  // --- Scenario 8: Verificação de estado após falha de transação (Regressão) ---
-  test('Verificação de estado após falha de transação (Regressão)', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
-
-    // Setup: Start a transaction with valid data
-    const initialData = await factory.generateTransactionData();
-    await inventoryPage.startTransaction(initialData);
-
-    // Action: Interrupt the transaction by causing an internal error (simulated)
-    await inventoryPage.simulateInternalErrorDuringTransaction();
-
-    // Assertion: The system should revert the state to the previous one (rollback)
-    await expect(inventoryPage.isTransactionRolledBack()).toBe(true);
-    await expect(inventoryPage.getCurrentState()).toEqual(initialData);
-  });
-
-  // --- Scenario 9: Teste de acesso de usuário não autenticado (Segurança) ---
-  test('Teste de acesso de usuário não autenticado (Segurança)', async ({ page }) => {
-    // Setup: User is not logged in (Implicitly handled by not calling loginPage.login)
-
-    // Action: Attempt to access the feature URL directly
-    await inventoryPage.attemptDirectAccess();
-
-    // Assertion: Should be redirected to the login screen
-    await expect(inventoryPage.isLoginPageVisible()).toBe(true);
-  });
-
-  // --- Scenario 10: Verificação de acesso restrito (Segurança/Acesso) ---
-  test('Verificação de acesso restrito (Segurança/Acesso)', async ({ page }) => {
-    await loginPage.login(ENVIRONMENTS.DEFAULT_USER, ENVIRONMENTS.DEFAULT_PASS);
-
-    // Action: Attempt to access the feature directly (without going through the correct flow)
-    await inventoryPage.attemptDirectAccess();
-
-    // Assertion: Should receive a permission error 403
-    await expect(inventoryPage.isPermissionDenied()).toBe(true);
-    await expect(inventoryPage.getHttpStatus()).toBe(403);
-  });
+        // Then Deve receber um erro de permissão 403
+        await dataPage.assertPermissionError403(); 
+    });
 });

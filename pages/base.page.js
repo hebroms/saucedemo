@@ -1,6 +1,5 @@
-const { expect } = require('playwright');
-const ENVIRONMENTS = require('../constants/environment.constants');
 const baseElements = require('../elements/base.elements');
+const ENVIRONMENTS = require('../constants/environment.constants');
 
 class BasePage {
     constructor(page) {
@@ -8,12 +7,12 @@ class BasePage {
     }
 
     async navigate(route) {
-        const url = `${ENVIRONMENTS.current}${route}`;
-        await this.page.goto(url);
+        const fullRoute = `${ENVIRONMENTS.current}${route}`;
+        await this.page.goto(fullRoute);
     }
 
     async assertPageLoaded() {
-        throw new Error('assertPageLoaded must be implemented by subclass');
+        await this.page.waitForLoadState('domcontentloaded');
     }
 
     async getHeaderContainer() {
@@ -24,16 +23,22 @@ class BasePage {
         return this.page.locator(baseElements.primaryHeader);
     }
 
-    async getOpenMenu() {
-        return this.page.locator(baseElements.openMenu);
-    }
-
     async getShoppingCartLink() {
         return this.page.locator(baseElements.shoppingCartLink);
     }
 
-    // Add other necessary base methods here if required by the framework structure, 
-    // but based strictly on the provided elements, these cover the requirements.
+    async getProductSortContainer() {
+        return this.page.locator(baseElements.productSortContainer);
+    }
+
+    // Placeholder methods for other global elements if they existed (e.g., logout, openCart)
+    async logout() {
+        // Implementation depends on actual selector logic, assumed to be handled by subclass or specific implementation
+    }
+
+    async openCart() {
+        // Implementation depends on actual selector logic
+    }
 }
 
 module.exports = BasePage;

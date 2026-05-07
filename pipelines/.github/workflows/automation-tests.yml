@@ -1,10 +1,11 @@
 name: Playwright CI/CD
-
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   test:
@@ -16,7 +17,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: '20'
 
     - name: Install dependencies
       run: npm install
@@ -24,18 +25,15 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install
 
-    - name: Run Playwright Tests and Generate Report
-      id: playwright_run
-      run: |
-        # Ensure the report directory exists before running tests, as specified
-        mkdir -p playwright-report
-        
-        # Execute the test command. We assume the playwright config handles environment loading if necessary.
-        npx playwright test --reporter=html --output playwright-report
-        
-    - name: Upload Playwright Report Artifacts
+    - name: Run Playwright Tests
+      # Rule 1: Environment variables are accessed here. We assume the test setup handles using these secrets for login/context if necessary, or they are used as configuration context.
+      # Rule 2: Playwright tests run in parallel by default when configured correctly.
+      run: npx playwright test --project=chromium --reporter=html --output=playwright-report
+
+    - name: Upload Test Report Artifacts
+      # Rule 3: Generate HTML report and upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: playwright-report-${{ github.run_id }}
+        name: playwright-report
         path: playwright-report
         retention-days: 7

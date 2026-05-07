@@ -5,133 +5,136 @@ import { ENVIRONMENTS } from '../constants/environment.constants';
 import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
-describe('Saucedemo 3 & 4 Feature Tests', () => {
+describe('Saucedemo 3 Feature Tests', () => {
     let loginPage: SAUCEDEMOPage;
     let inventoryPage: SAUCEDEMOPage;
-    let genericFactory: GenericFactory;
+    let factory: GenericFactory;
 
-    // Setup before each test
     beforeEach(async () => {
         // Initialize Page Objects
-        loginPage = new SAUCEDEMOPage();
-        inventoryPage = new SAUCEDEMOPage();
-        genericFactory = new GenericFactory();
+        loginPage = new SAUCEDEMOPage(await page); // Assuming 'page' is available in scope or passed contextually
+        inventoryPage = new SAUCEDEMOPage(await page); 
+        factory = new GenericFactory();
 
-        // Assume login setup is handled by a specific method or factory call if needed, 
-        // but for these tests, we rely on the page object methods to handle navigation/login state.
+        // Setup common login state for scenarios requiring a logged-in user
+        await factory.login(loginPage, ENVIRONMENTS.USERNAME, ENVIRONMENTS.PASSWORD);
     });
 
-    // --- Feature: saucedemo 3 Tests ---
-
-    test('Verificar carregamento inicial da feature saucedemo 3 (Smoke Test)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
+    // Scenario: Verificar carregamento inicial da feature saucedemo 3 (Smoke Test) [smoke] [high]
+    test('Verificar carregamento inicial da feature saucedemo 3', async () => {
         await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
         await inventoryPage.assertLoaded();
     });
 
-    test('Testar o limite mínimo permitido para um parâmetro (Boundary Testing)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
-        // Assuming the page object has methods to interact with specific fields based on context
-        await inventoryPage.enterMinBoundaryValue('Y', 0); 
-        await inventoryPage.processOperation();
-        await inventoryPage.assertSuccess();
+    // Scenario: Verificar limite inferior de entrada (Boundary Testing) [boundary] [medium]
+    test('Testar o limite mínimo permitido para um parâmetro', async () => {
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        await inventoryPage.enterMinValueInField('Y', 0); // Assuming 'Y' is the field and 0 is the minimum
+        await inventoryPage.processInput();
+        await inventoryPage.assertProcessingSuccess();
     });
 
-    test('Testar o limite máximo permitido para um parâmetro (Boundary Testing)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
-        // Assuming the page object has methods to interact with specific fields based on context
-        await inventoryPage.enterMaxBoundaryValue('X', 9999); 
-        await inventoryPage.processOperation();
-        await inventoryPage.assertSuccess();
+    // Scenario: Verificar limite superior de entrada (Boundary Testing) [boundary] [medium]
+    test('Testar o limite máximo permitido para um parâmetro', async () => {
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        await inventoryPage.enterMaxValueInField('X', 99999); // Assuming 'X' is the field and 99999 is the maximum
+        await inventoryPage.processInput();
+        await inventoryPage.assertProcessingSuccess();
     });
 
-    test('Execução da feature por um perfil de usuário restrito (Regra de Negócio)', async () => {
-        // Setup user with restricted profile
-        await loginPage.loginWithProfile('Leitor'); 
+    // Scenario: Verificar comportamento com perfil de usuário diferente (Regra de Negócio) [business-rule] [medium]
+    test('Execução da feature por um perfil de usuário restrito', async () => {
+        // Setup user with 'Leitor' profile (This setup must be handled by the factory/loginPage methods)
+        await factory.login(loginPage, ENVIRONMENTS.USERNAME, ENVIRONMENTS.PASSWORD, 'Leitor'); 
+
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
         
-        // Attempt action requiring higher permission
-        await inventoryPage.attemptEditorAction(); 
+        // Attempt action requiring 'Editor' permission
+        await inventoryPage.attemptEditOperation(); 
         
-        // Assert blockage based on business rule
-        await inventoryPage.assertActionBlocked();
+        // Assertion: Functionality should be blocked
+        await inventoryPage.assertBlockedMessage(ALERT_MESSAGES.PERMISSION_DENIED);
     });
 
-    test('Exibir a regra de negócio baseada no valor inserido (Regra de Negócio)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
+    // Scenario: Verificação da exibição correta das regras de negócio (Regra de Negócio) [business-rule] [medium]
+    test('Exibir a regra de negócio baseada no valor inserido', async () => {
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+
+        // Action: Input value that triggers a specific rule (e.g., > 100)
+        await inventoryPage.enterValueForRule('X', 150); 
         
-        // Set value that triggers the rule (e.g., > 100)
-        await inventoryPage.setParameterValue('ValueField', 150); 
-        
-        // Visualize result
+        // Action: Visualize the result of the operation
         await inventoryPage.visualizeResult();
-        
-        // Assert message matches the expected rule
-        await inventoryPage.assertMessageMatchesRule('ValueGreaterThan100');
+
+        // Assertion: Message must match the associated business rule
+        await inventoryPage.assertMessageMatches(ALERT_MESSAGES.RULE_EXCEEDED_LIMIT);
     });
 
-    test('Verificar tratamento de dados mal formatados (Negativo)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
+    // Scenario: Verificar tratamento de dados mal formatados (Negativo) [negative] [medium]
+    test('Inserir caracteres inválidos nos campos numéricos', async () => {
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+
+        // Action: Enter text in a field expecting numbers ('abc')
+        await inventoryPage.enterInvalidTextInNumericField('Y', 'abc'); 
         
-        // Attempt to input non-numeric text into a numeric field
-        await inventoryPage.enterInvalidFormat('NumericField', 'abc'); 
-        
-        // Assert system rejection with expected error format
-        await inventoryPage.assertErrorDisplayed(ALERT_MESSAGES.FORMAT_ERROR);
+        // Assertion: System must reject the input with format error
+        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.INVALID_FORMAT);
     });
 
-    test('Medir o tempo de resposta da funcionalidade (Smoke/Performance)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
-        
-        // Execute the main operation
+    // Scenario: Verificar performance sob carga moderada (Smoke/Performance) [smoke] [medium]
+    test('Medir o tempo de resposta da funcionalidade', async () => {
+        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+
+        // Action: Execute the main operation
         const startTime = Date.now();
         await inventoryPage.executeMainOperation();
         const endTime = Date.now();
-        const duration = (endTime - startTime) / 1000;
+        const responseTime = (endTime - startTime) / 1000; // Time in seconds
 
-        // Assert performance requirement
+        // Assertion: Response time must be less than 3 seconds
         await inventoryPage.assertResponseTimeLessThan(3);
     });
 
-    // --- Feature: saucedemo 4 Tests ---
-
-    test('Login attempt with incorrect password (Negative)', async () => {
-        // Setup initial state on login page
+    // Scenario: Negative Test: Login with Invalid Password (Business Rule Validation) [negative] [high]
+    test('Login attempt with incorrect password', async () => {
+        // Setup: Start on login page (assuming the Page Object handles navigation or state setup)
         await loginPage.navigateToLoginPage(); 
-        
-        // Action
-        await loginPage.enterCredentials('valid_user', 'invalid_password');
-        await loginPage.clickLogin();
-        
-        // Assertion
+
+        // Action: Enter valid username and invalid password
+        await loginPage.fillCredentials(ENVIRONMENTS.USERNAME, 'wrongpassword');
+        await loginPage.submit();
+
+        // Assertion: Error message stating 'Invalid credentials' should be displayed
         await loginPage.assertErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
     });
 
-    test('Attempting to proceed to checkout without shipping address (Negative)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
-        
-        // Setup cart items (assumed via factory or page method)
-        await inventoryPage.addItemToCart(1); 
+    // Scenario: Negative Test: Missing Required Field (Checkout) [negative] [high]
+    test('Attempting to proceed to checkout without shipping address', async () => {
+        // Setup: Ensure user has items in the cart (handled by factory setup or specific page action)
+        await inventoryPage.navigateToCheckout();
 
-        // Action: Attempt checkout without filling mandatory fields
-        await inventoryPage.clickCheckout();
+        // Action: Attempt to click Checkout without filling mandatory details
+        await inventoryPage.clickCheckoutButton(); 
         
-        // Assertion: Check for required field prompt
-        await inventoryPage.assertErrorDisplayed(ALERT_MESSAGES.MISSING_SHIPPING_DETAILS);
+        // Assertion: Error message prompting for missing fields must appear
+        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.MISSING_REQUIRED_FIELDS);
     });
 
-    test('Verifying consistent error messaging across forms (Positive)', async () => {
-        await loginPage.loginWithDefaultUser(); // Setup logged in state
-        
-        // 1. Attempt wrong password
-        await loginPage.enterCredentials('user', 'wrong_pass');
-        await loginPage.clickLogin();
+    // Scenario: Positive Test: Clear Error Message Consistency [positive] [high]
+    test('Verifying consistent error messaging across forms', async () => {
+        // Action 1: Attempt wrong password
+        await loginPage.fillCredentials(ENVIRONMENTS.USERNAME, 'wrongpassword');
+        await loginPage.submit();
         await loginPage.assertErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
 
-        // 2. Attempt missing field (simulated checkout failure)
-        await inventoryPage.attemptCheckoutWithoutAddress();
-        await inventoryPage.assertErrorDisplayed(ALERT_MESSAGES.MISSING_SHIPPING_DETAILS);
+        // Action 2: Attempt missing field during checkout (assuming we navigate to checkout)
+        await inventoryPage.navigateToCheckout();
+        await inventoryPage.clickCheckoutButton(); // Triggers missing field error
 
-        // Assertion: Verify that all resulting error messages follow defined standards
-        await inventoryPage.verifyConsistentMessaging();
+        // Assertion: All resulting error messages must follow the defined system standards
+        const actualMessages = await loginPage.getAllDisplayedErrorMessages(); // Assuming a method exists to retrieve all errors
+        
+        expect(actualMessages).toContain(ALERT_MESSAGES.INVALID_CREDENTIALS);
+        expect(actualMessages).toContain(ALERT_MESSAGES.MISSING_REQUIRED_FIELDS);
     });
 });

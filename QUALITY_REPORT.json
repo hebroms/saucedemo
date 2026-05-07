@@ -16,13 +16,13 @@
   "removedDeadCode": [],
   "warnings": [
     "Blocked: \"Smoke Test: Login with Valid Credentials\" — Duplicate scenario title — already included",
-    "Quality violation in elements/s-a-u-c-e-d-e-m-o.elements.js: // assuming comment (1x)",
-    "Quality violation in pages/s-a-u-c-e-d-e-m-o.page.js: // placeholder comment (1x), // assuming comment (3x)",
-    "Quality violation in tests/s-a-u-c-e-d-e-m-o.spec.js: // assuming comment (1x)",
-    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-2.spec.js: // assuming comment (3x)",
-    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-3.spec.js: // assuming comment (2x)",
+    "Quality violation in pages/base.page.js: // placeholder comment (1x), // implement comment (2x)",
+    "Quality violation in pages/s-a-u-c-e-d-e-m-o.page.js: console.log call (5x), // placeholder comment (3x), // assuming comment (7x)",
+    "Quality violation in tests/s-a-u-c-e-d-e-m-o.spec.js: // assuming comment (2x)",
+    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-2.spec.js: // assuming comment (1x), page.goto() in test (use page object navigate()) (2x)",
+    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-3.spec.js: // assuming comment (4x)",
     "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-4.spec.js: // placeholder comment (1x), // assuming comment (2x)",
-    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-5.spec.js: // assuming comment (2x)"
+    "Quality violation in tests/s-a-u-c-e-d-e-m-o-part-5.spec.js: // assuming comment (1x)"
   ],
   "qualityChecks": {
     "noUnusedElements": true,
