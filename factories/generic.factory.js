@@ -1,18 +1,26 @@
 import { GenericData } from '../interfaces/generic.interface';
 
-class FormDataFactory {
-  /**
-   * Generates test data for the specific form fields discovered.
-   * @returns {GenericData} The generated form data.
-   */
-  static form(): GenericData {
-    return {
-      firstName: "João QA Silva",
-      lastName: "João QA Silva",
-      postalCode: "01310-100",
-      continue: "Texto de teste QA",
-    };
-  }
+const { faker } = require('@faker-js/faker');
+
+class TestDataFactory {
+    /**
+     * Generates test data for a single form submission scenario.
+     * @returns {GenericData} The generated test data object.
+     */
+    static createFormSubmission(): GenericData {
+        const firstName = faker.person.firstName();
+        const lastName = faker.person.lastName();
+        // Generate a plausible postal code format (e.g., Brazilian style, based on example)
+        const postalCode = `${String(Math.floor(10000 + Math.random() * 90000))}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+        const continueButtonText = faker.lorem.sentence();
+
+        return {
+            firstName: firstName,
+            lastName: lastName,
+            postalCode: postalCode,
+            continue: continueButtonText,
+        };
+    }
 }
 
-export { FormDataFactory };
+module.exports = TestDataFactory;

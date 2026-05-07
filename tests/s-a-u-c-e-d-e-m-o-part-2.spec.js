@@ -6,138 +6,116 @@ import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
 describe('SAUCEDEMO Feature Tests', () => {
-    let loginPage: SAUCEDEMOPage;
-    let dataPage: SAUCEDEMOPage;
+    let basePage: BasePage;
+    let saucedemoPage: SAUCEDEMOPage;
     let genericFactory: GenericFactory;
 
-    // Setup common objects and pages
-    beforeAll(() => {
-        loginPage = new SAUCEDEMOPage(setup); // Assuming setup handles context/browser initialization
-        dataPage = new SAUCEDEMOPage(setup);
-        genericFactory = new GenericFactory();
-    });
-
-    // Setup for login before each test
+    // Setup before each test
     beforeEach(async () => {
-        await loginPage.login(ENVIRONMENTS.LOGIN_USER, ENVIRONMENTS.LOGIN_PASS);
-        // Ensure we start on a known state if necessary, though most tests will navigate explicitly
+        // Initialize Page Objects
+        basePage = new BasePage();
+        saucedemoPage = new SAUCEDEMOPage(basePage);
+        genericFactory = new GenericFactory();
+
+        // Standard setup: Login (assuming a standard login flow exists in the PO)
+        await saucedemoPage.login(ENVIRONMENTS.USERNAME, ENVIRONMENTS.PASSWORD);
     });
 
-    // --- Scenario 1: Boundary Test: Edge Case Data Type Handling ---
+    // Scenario 1: Boundary Test: Edge Case Data Type Handling
     test('Boundary Test: Edge Case Data Type Handling', async () => {
-        await dataPage.navigate(ROUTES.DATA_ENTRY);
-        // Simulate inputting non-numeric characters into a numeric field
-        await dataPage.fillNumericField('abc');
-        // Assert that the system handles the input gracefully (e.g., displays an error)
-        await dataPage.assertInputError(); 
+        // Given the user is entering data into a numerical field
+        // When the user inputs non-numeric characters (e.g., 'abc')
+        await saucedemoPage.enterDataWithInvalidType(123, 'abc');
+        // Then the system should handle the input gracefully, either rejecting it or coercing it to an error state
+        await saucedemoPage.assertInputValidationResult('numeric_field', 'invalid_format');
     });
 
-    // --- Scenario 2: Negative Test: Empty Field Submission ---
+    // Scenario 2: Negative Test: Empty Field Submission
     test('Negative Test: Empty Field Submission', async () => {
-        await dataPage.navigate(ROUTES.SUBMISSION);
-        // Attempt to submit without filling required fields
-        await dataPage.submitForm();
-        // Assert that validation errors appear next to all missing mandatory fields
-        await dataPage.assertValidationErrorsExist(); 
+        // Given the user is on the data submission screen
+        // When the user attempts to submit without filling required fields
+        await saucedemoPage.attemptSubmissionWithEmptyFields();
+        // Then validation errors should appear next to all missing mandatory fields
+        await saucedemoPage.assertValidationErrorsExist();
     });
 
-    // --- Scenario 3: Access Test: Session Timeout Handling ---
+    // Scenario 3: Access Test: Session Timeout Handling
     test('Access Test: Session Timeout Handling', async () => {
-        // Given the user has an active session (covered by beforeEach)
-        
+        // Given the user has an active session
         // When the user remains inactive for the defined timeout period
-        await page.waitForTimeout(ENVIRONMENTS.SESSION_TIMEOUT_MS + 1000); 
-
+        await saucedemoPage.simulateInactivity(ENVIRONMENTS.SESSION_TIMEOUT);
         // And attempts to perform a sensitive action
-        await dataPage.attemptSensitiveAction();
-        
+        await saucedemoPage.attemptSensitiveAction();
         // Then the system should force a re-login
-        await dataPage.assertReauthenticationRequired();
+        await saucedemoPage.assertReauthenticationRequired();
     });
 
-    // --- Scenario 4: Verificar tratamento de entrada negativa (Input Validation) ---
+    // Scenario 4: Verificar tratamento de entrada negativa (Input Validation)
     test('Verificar tratamento de entrada negativa (Input Validation)', async () => {
-        await dataPage.navigate(ROUTES.DATA_ENTRY);
-        // Tentar executar com campos vazios ou inválidos
-        await dataPage.fillAllFields(''); 
-        
+        // Given Usuário padrão logado
+        // When Tenta submeter o formulário com campos obrigatórios vazios
+        await saucedemoPage.attemptSubmissionWithEmptyFields();
         // Then O sistema deve retornar uma mensagem de erro válida
-        await dataPage.submitForm();
-        await dataPage.assertErrorMessage(ALERT_MESSAGES.VALIDATION_ERROR);
+        await saucedemoPage.assertErrorMessage(ALERT_MESSAGES.VALIDATION_ERROR);
     });
 
-    // --- Scenario 5: Verificação de erro em comunicação externa (Regra de Negócio) ---
+    // Scenario 5: Verificação de erro em comunicação externa (Regra de Negócio)
     test('Verificação de erro em comunicação externa (Regra de Negócio)', async () => {
         // Given O serviço externo está simulando falha de resposta
-        await dataPage.simulateExternalServiceFailure();
-
+        await saucedemoPage.simulateExternalServiceFailure();
         // When Executa a funcionalidade que depende desse serviço
-        await dataPage.executeDependentFunctionality();
-
+        await saucedemoPage.executeFeatureThatDependsOnService();
         // Then O sistema deve tratar o erro e exibir uma mensagem de indisponibilidade
-        await dataPage.assertErrorMessage(ALERT_MESSAGES.SERVICE_UNAVAILABLE);
+        await saucedemoPage.assertErrorMessage(ALERT_MESSAGES.SERVICE_UNAVAILABLE);
     });
 
-    // --- Scenario 6: Fluxo de uso positivo: Execução básica da funcionalidade ---
+    // Scenario 6: Fluxo de uso positivo: Execução básica da funcionalidade
     test('Fluxo de uso positivo: Execução básica da funcionalidade', async () => {
-        await dataPage.navigate(ROUTES.DATA_ENTRY);
+        // Given Usuário padrão logado
+        // When Inicia o processo da feature
         // And Fornece todos os parâmetros exigidos
-        await dataPage.fillAllFields(genericFactory.generateValidData()); 
-        
+        await saucedemoPage.executePositiveFlow(genericFactory.createValidData());
         // Then O processo deve ser concluído com sucesso
-        await dataPage.submitForm();
-        await dataPage.assertSuccessMessage();
+        await saucedemoPage.assertProcessCompletionSuccess();
     });
 
-    // --- Scenario 7: Verificação de persistência de dados após o uso positivo (Regressão) ---
+    // Scenario 7: Verificação de persistência de dados após o uso positivo (Regressão)
     test('Verificação de persistência de dados após o uso positivo (Regressão)', async () => {
-        const newData = genericFactory.generateNewData();
-        
-        // Given Usuário padrão logado (covered by beforeEach)
-        
+        // Given Usuário padrão logado
         // When Executa o fluxo positivo com novos dados
-        await dataPage.navigate(ROUTES.DATA_ENTRY);
-        await dataPage.fillAllFields(newData);
-        await dataPage.submitForm();
-
+        await saucedemoPage.executePositiveFlow(genericFactory.createNewData());
         // And Verifica a visualização dos dados posteriormente
-        await dataPage.navigate(ROUTES.VIEW_DATA);
-        await dataPage.verifyDataPersistence(newData); 
+        await saucedemoPage.verifyDataPersistence();
+        // Then Os dados devem ser persistidos no banco de dados
+        await saucedemoPage.assertDataPersistedInDatabase();
     });
 
-    // --- Scenario 8: Verificação de estado após falha de transação (Regressão) ---
+    // Scenario 8: Verificação de estado após falha de transação (Regressão)
     test('Verificação de estado após falha de transação (Regressão)', async () => {
-        const transactionData = genericFactory.generateValidTransactionData();
-        
         // Given Uma transação foi iniciada com dados válidos
-        await dataPage.startTransaction(transactionData);
-
+        await saucedemoPage.startTransactionWithValidData(genericFactory.createTestData());
         // When A transação é interrompida por um erro interno
-        await dataPage.simulateInternalErrorDuringTransaction();
-
+        await saucedemoPage.interruptTransactionWithError();
         // Then O sistema deve reverter o estado para o anterior (rollback)
-        await dataPage.assertTransactionRolledBack(); 
+        await saucedemoPage.assertStateRolledBackToPrevious();
     });
 
-    // --- Scenario 9: Teste de acesso de usuário não autenticado (Segurança) ---
+    // Scenario 9: Teste de acesso de usuário não autenticado (Segurança)
     test('Teste de acesso de usuário não autenticado (Segurança)', async () => {
-        // Given O usuário não está logado (resetting session state implicitly or explicitly)
-        await page.goto(ROUTES.SOME_PROTECTED_ROUTE);
-
+        // Given O usuário não está logado
+        await saucedemoPage.navigateToFeatureRoute(ROUTES.FEATURE_ROUTE);
         // When Tenta acessar a URL da feature
+        await saucedemoPage.attemptAccessWithoutAuthentication();
         // Then Deve ser redirecionado para a tela de login
-        await dataPage.assertRedirectToLogin(); 
+        await saucedemoPage.assertRedirectedToLoginScreen();
     });
 
-    // --- Scenario 10: Verificação de acesso restrito (Segurança/Acesso) ---
+    // Scenario 10: Verificação de acesso restrito (Segurança/Acesso)
     test('Verificação de acesso restrito (Segurança/Acesso)', async () => {
-        // Given Usuário padrão logado (assuming successful login via beforeEach)
-        
+        // Given Usuário padrão logado
         // When Tenta acessar a URL da feature diretamente (sem passar pelo fluxo correto)
-        const restrictedRoute = ROUTES.RESTRICTED_FEATURE;
-        await page.goto(restrictedRoute);
-
+        await saucedemoPage.attemptDirectAccessToRestrictedFeature();
         // Then Deve receber um erro de permissão 403
-        await dataPage.assertPermissionError403(); 
+        await saucedemoPage.assertReceivedPermissionError(403);
     });
 });

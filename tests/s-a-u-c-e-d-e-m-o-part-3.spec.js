@@ -5,136 +5,154 @@ import { ENVIRONMENTS } from '../constants/environment.constants';
 import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
-describe('Saucedemo 3 Feature Tests', () => {
-    let loginPage: SAUCEDEMOPage;
-    let inventoryPage: SAUCEDEMOPage;
+describe('Saucedemo Feature Tests', () => {
+    let basePage: BasePage;
+    let saucedemoPage: SAUCEDEMOPage;
     let factory: GenericFactory;
 
-    beforeEach(async () => {
-        // Initialize Page Objects
-        loginPage = new SAUCEDEMOPage(await page); // Assuming 'page' is available in scope or passed contextually
-        inventoryPage = new SAUCEDEMOPage(await page); 
+    // Setup common objects
+    beforeAll(() => {
+        basePage = new BasePage();
+        saucedemoPage = new SAUCEDEMOPage(basePage);
         factory = new GenericFactory();
-
-        // Setup common login state for scenarios requiring a logged-in user
-        await factory.login(loginPage, ENVIRONMENTS.USERNAME, ENVIRONMENTS.PASSWORD);
     });
 
-    // Scenario: Verificar carregamento inicial da feature saucedemo 3 (Smoke Test) [smoke] [high]
-    test('Verificar carregamento inicial da feature saucedemo 3', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
-        await inventoryPage.assertLoaded();
+    // --- Scenario 1: Smoke Test ---
+    test('Verificar o acesso à página principal', async () => {
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
+        await saucedemoPage.navigate(ROUTES.HOME);
+        await saucedemoPage.assertLoaded();
     });
 
-    // Scenario: Verificar limite inferior de entrada (Boundary Testing) [boundary] [medium]
+    // --- Scenario 2: Boundary Testing (Minimum) ---
     test('Testar o limite mínimo permitido para um parâmetro', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
-        await inventoryPage.enterMinValueInField('Y', 0); // Assuming 'Y' is the field and 0 is the minimum
-        await inventoryPage.processInput();
-        await inventoryPage.assertProcessingSuccess();
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
+
+        // Assuming the boundary test targets a specific input field setup within SAUCEDEMOPage methods
+        await saucedemoPage.enterMinimumValue('Y', 0); // Placeholder method call based on requirement
+        await saucedemoPage.processOperation();
+        
+        // Assertion: System must accept and process correctly (implied by successful operation)
+        await saucedemoPage.assertOperationSuccess(); 
     });
 
-    // Scenario: Verificar limite superior de entrada (Boundary Testing) [boundary] [medium]
+    // --- Scenario 3: Boundary Testing (Maximum) ---
     test('Testar o limite máximo permitido para um parâmetro', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
-        await inventoryPage.enterMaxValueInField('X', 99999); // Assuming 'X' is the field and 99999 is the maximum
-        await inventoryPage.processInput();
-        await inventoryPage.assertProcessingSuccess();
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
+
+        // Assuming the boundary test targets a specific input field setup within SAUCEDEMOPage methods
+        await saucedemoPage.enterMaximumValue('X', 99999); // Placeholder method call based on requirement
+        await saucedemoPage.processOperation();
+
+        // Assertion: System must accept and process correctly (implied by successful operation)
+        await saucedemoPage.assertOperationSuccess();
     });
 
-    // Scenario: Verificar comportamento com perfil de usuário diferente (Regra de Negócio) [business-rule] [medium]
+    // --- Scenario 4: Business Rule (Permission Check) ---
     test('Execução da feature por um perfil de usuário restrito', async () => {
-        // Setup user with 'Leitor' profile (This setup must be handled by the factory/loginPage methods)
-        await factory.login(loginPage, ENVIRONMENTS.USERNAME, ENVIRONMENTS.PASSWORD, 'Leitor'); 
+        const restrictedUser = factory.createRestrictedUser('Leitor');
+        await saucedemoPage.login(restrictedUser.username, restrictedUser.password);
 
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
-        
         // Attempt action requiring 'Editor' permission
-        await inventoryPage.attemptEditOperation(); 
-        
-        // Assertion: Functionality should be blocked
-        await inventoryPage.assertBlockedMessage(ALERT_MESSAGES.PERMISSION_DENIED);
+        await saucedemoPage.attemptEditorFunctionality(); 
+
+        // Assertion: Functionality must be blocked
+        await saucedemoPage.assertFunctionalityBlocked(); 
     });
 
-    // Scenario: Verificação da exibição correta das regras de negócio (Regra de Negócio) [business-rule] [medium]
+    // --- Scenario 5: Business Rule (Displaying Rules) ---
     test('Exibir a regra de negócio baseada no valor inserido', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
 
-        // Action: Input value that triggers a specific rule (e.g., > 100)
-        await inventoryPage.enterValueForRule('X', 150); 
+        // Setup: Insert value that triggers a specific rule (e.g., > 100)
+        await saucedemoPage.enterValueForRule('trigger_high', 101); 
         
-        // Action: Visualize the result of the operation
-        await inventoryPage.visualizeResult();
+        // Action: Visualize the result
+        const result = await saucedemoPage.visualizeResult();
 
-        // Assertion: Message must match the associated business rule
-        await inventoryPage.assertMessageMatches(ALERT_MESSAGES.RULE_EXCEEDED_LIMIT);
+        // Assertion: Message displayed must match the associated rule
+        await expect(result).toContain(ALERT_MESSAGES.RULE_HIGH_VALUE); 
     });
 
-    // Scenario: Verificar tratamento de dados mal formatados (Negativo) [negative] [medium]
+    // --- Scenario 6: Negative Test (Invalid Data) ---
     test('Inserir caracteres inválidos nos campos numéricos', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
 
-        // Action: Enter text in a field expecting numbers ('abc')
-        await inventoryPage.enterInvalidTextInNumericField('Y', 'abc'); 
-        
-        // Assertion: System must reject the input with format error
-        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.INVALID_FORMAT);
+        // Action: Enter text where numbers are expected
+        await saucedemoPage.enterTextInNumericField('field_x', 'abc'); 
+
+        // Assertion: System must reject the entry with format error
+        await expect(saucedemoPage.getErrorMessage()).toContain(ALERT_MESSAGES.ERROR_INVALID_FORMAT);
     });
 
-    // Scenario: Verificar performance sob carga moderada (Smoke/Performance) [smoke] [medium]
+    // --- Scenario 7: Performance Test ---
     test('Medir o tempo de resposta da funcionalidade', async () => {
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
 
         // Action: Execute the main operation
-        const startTime = Date.now();
-        await inventoryPage.executeMainOperation();
-        const endTime = Date.now();
-        const responseTime = (endTime - startTime) / 1000; // Time in seconds
+        const responseTime = await saucedemoPage.executeMainOperation();
 
         // Assertion: Response time must be less than 3 seconds
-        await inventoryPage.assertResponseTimeLessThan(3);
+        await expect(responseTime).toBeLessThan(3000);
     });
 
-    // Scenario: Negative Test: Login with Invalid Password (Business Rule Validation) [negative] [high]
+    // --- Scenario 8: Negative Test (Invalid Credentials) ---
     test('Login attempt with incorrect password', async () => {
-        // Setup: Start on login page (assuming the Page Object handles navigation or state setup)
-        await loginPage.navigateToLoginPage(); 
+        const user = factory.createStandardUser(); // Valid username, invalid password
+        
+        // Setup: Start on the login page (assuming login method handles navigation implicitly or explicitly)
+        await saucedemoPage.navigateToLoginPage(); 
 
         // Action: Enter valid username and invalid password
-        await loginPage.fillCredentials(ENVIRONMENTS.USERNAME, 'wrongpassword');
-        await loginPage.submit();
+        await saucedemoPage.fillCredentials(user.username, 'wrong_password');
+        await saucedemoPage.submit();
 
         // Assertion: Error message stating 'Invalid credentials' should be displayed
-        await loginPage.assertErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
+        const errorMessage = await saucedemoPage.getErrorMessage();
+        await expect(errorMessage).toContain(ALERT_MESSAGES.ERROR_INVALID_CREDENTIALS);
     });
 
-    // Scenario: Negative Test: Missing Required Field (Checkout) [negative] [high]
+    // --- Scenario 9: Negative Test (Missing Required Field) ---
     test('Attempting to proceed to checkout without shipping address', async () => {
-        // Setup: Ensure user has items in the cart (handled by factory setup or specific page action)
-        await inventoryPage.navigateToCheckout();
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
 
-        // Action: Attempt to click Checkout without filling mandatory details
-        await inventoryPage.clickCheckoutButton(); 
-        
+        // Setup: Ensure items are in the cart (assuming this is handled by a setup method)
+        await saucedemoPage.addItemToCart(1); 
+
+        // Action: Attempt to click Checkout without filling details
+        await saucedemoPage.attemptCheckoutWithoutDetails();
+
         // Assertion: Error message prompting for missing fields must appear
-        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.MISSING_REQUIRED_FIELDS);
+        const errorMessage = await saucedemoPage.getErrorMessage();
+        await expect(errorMessage).toContain(ALERT_MESSAGES.ERROR_MISSING_SHIPPING_DETAILS);
     });
 
-    // Scenario: Positive Test: Clear Error Message Consistency [positive] [high]
+    // --- Scenario 10: Positive Test (Error Message Consistency) ---
     test('Verifying consistent error messaging across forms', async () => {
-        // Action 1: Attempt wrong password
-        await loginPage.fillCredentials(ENVIRONMENTS.USERNAME, 'wrongpassword');
-        await loginPage.submit();
-        await loginPage.assertErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
+        const user = factory.createStandardUser();
+        await saucedemoPage.login(user.username, user.password);
 
-        // Action 2: Attempt missing field during checkout (assuming we navigate to checkout)
-        await inventoryPage.navigateToCheckout();
-        await inventoryPage.clickCheckoutButton(); // Triggers missing field error
+        // Action 1: Wrong password attempt
+        await saucedemoPage.fillCredentials(user.username, 'wrong_password');
+        await saucedemoPage.submit();
+        let error1 = await saucedemoPage.getErrorMessage();
+        await expect(error1).toContain(ALERT_MESSAGES.ERROR_INVALID_CREDENTIALS);
 
-        // Assertion: All resulting error messages must follow the defined system standards
-        const actualMessages = await loginPage.getAllDisplayedErrorMessages(); // Assuming a method exists to retrieve all errors
-        
-        expect(actualMessages).toContain(ALERT_MESSAGES.INVALID_CREDENTIALS);
-        expect(actualMessages).toContain(ALERT_MESSAGES.MISSING_REQUIRED_FIELDS);
+        // Action 2: Missing field attempt (assuming we navigate to a form where this is possible)
+        await saucedemoPage.navigateToCheckoutForm();
+        await saucedemoPage.attemptCheckoutWithoutDetails();
+        let error2 = await saucedemoPage.getErrorMessage();
+        await expect(error2).toContain(ALERT_MESSAGES.ERROR_MISSING_SHIPPING_DETAILS);
+
+        // Assertion: All resulting error messages must follow the defined system standards (checked by ensuring specific expected messages were returned)
+        expect(error1).toMatch(new RegExp(ALERT_MESSAGES.ERROR_INVALID_CREDENTIALS));
+        expect(error2).toMatch(new RegExp(ALERT_MESSAGES.ERROR_MISSING_SHIPPING_DETAILS));
     });
 });

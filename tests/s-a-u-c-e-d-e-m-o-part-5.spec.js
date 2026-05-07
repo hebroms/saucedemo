@@ -6,153 +6,149 @@ import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
 describe('SAUCEDEMO Feature Tests', () => {
-    let loginPage: SAUCEDEMOPage;
-    let inventoryPage: SAUCEDEMOPage;
-    let cartPage: SAUCEDEMOPage;
-    let genericFactory: GenericFactory;
+    let user;
+    let factory: GenericFactory;
 
-    // Setup environment variables for testing
-    const TEST_ENV = ENVIRONMENTS.testEnvironment || 'staging';
-
-    beforeAll(() => {
-        // Initialize Page Objects (Assuming they are instantiated within the setup)
-        // In a real scenario, these would be initialized via a fixture or setup function.
-        // For this exercise, we instantiate them based on the provided imports.
-        loginPage = new SAUCEDEMOPage(TEST_ENV);
-        inventoryPage = new SAUCEDEMOPage(TEST_ENV);
-        cartPage = new SAUCEDEMOPage(TEST_ENV);
-        genericFactory = new GenericFactory();
-    });
-
+    // Setup before each test
     beforeEach(async () => {
-        // Setup for login/authentication state before each test, if required by the scenario.
-        // We will handle specific logins within the tests themselves to isolate flow testing.
+        factory = new GenericFactory();
+        user = factory.createTestUser(); // Assumes factory handles creating valid/invalid users based on context
+
+        // Initialize the main page object
+        // Assuming SAUCEDEMOPage constructor handles initialization with base URL from ENVIRONMENTS
     });
 
-    // --- Scenario: Regression Test: Data Consistency Across Sessions ---
+    // Scenario: Regression Test: Data Consistency Across Sessions
     test('Verifying cart persistence across sessions', async () => {
-        const user = genericFactory.createUser('testuser', 'password123');
-        
-        // 1. Given the user has items in their cart
-        await loginPage.login(user.username, user.password);
-        await cartPage.addItem(user.id, 'productA', 1); // Simulate adding an item
+        // Given the user has items in their cart
+        await SAUCEDEMOPage.addItemToCart(user.username, 'product_id_1');
+        await SAUCEDEMOPage.assertCartContainsItem(user.username, 'product_id_1');
 
-        // 2. When the user logs out and logs back in
-        await loginPage.logout();
-        await loginPage.login(user.username, user.password);
+        // When the user logs out and logs back in
+        await SAUCEDEMOPage.logout();
+        await SAUCEDEMOPage.login(user.username, user.password);
 
-        // 3. And navigates to the cart page
-        await cartPage.navigate();
+        // And navigates to the cart page
+        await SAUCEDEMOPage.navigate(ROUTES.CART_ROUTE);
 
-        // 4. Then the previously added items should persist
-        const persistedItems = await cartPage.getCartContents();
-        expect(persistedItems).toHaveLength(1);
-        expect(persistedItems[0].name).toBe('productA');
+        // Then the previously added items should persist
+        await SAUCEDEMOPage.assertCartContainsItem(user.username, 'product_id_1');
     });
 
-    // --- Scenario: Acesso ao inventário sem autenticação (Access Restriction) ---
-    test('Tentar acessar /inventory.html sem login', async () => {
+    // Scenario: Acesso ao inventário sem autenticação (Verificação de Restrição)
+    test('Acesso ao inventário sem autenticação deve ser bloqueado', async () => {
         // Given Usuário não autenticado
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        await SAUCEDEMOPage.clearSession(); // Ensure no session exists
 
         // When Tenta acessar /inventory.html
+        const result = await SAUCEDEMOPage.navigateTo(ROUTES.INVENTORY_ROUTE);
+
         // Then Deve ser bloqueado e receber erro de acesso
-        await expect(inventoryPage).toHaveError('Access Denied'); // Assuming the PO handles this specific error state
+        await expect(result).toHaveError(ALERT_MESSAGES.ACCESS_DENIED);
     });
 
-    // --- Scenario: Login falho com Username inválido ---
-    test('Login com Username inexistente', async () => {
+    // Scenario: Login falho com Username inválido
+    test('Login com Username inexistente deve exibir erro de credenciais inválidas', async () => {
         // Given Usuário sem registro
-        const invalidUser = 'nonexistentuser';
-        
+        const invalidUser = 'nonexistent_user';
+        const password = user.password;
+
         // When Insere Username e Password
-        await loginPage.login(invalidUser, 'anypassword');
+        const result = await SAUCEDEMOPage.login(invalidUser, password);
 
         // Then Deve exibir mensagem de erro de credenciais inválidas
-        await expect(loginPage).toDisplayErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
+        await expect(result).toHaveError(ALERT_MESSAGES.INVALID_CREDENTIALS);
     });
 
-    // --- Scenario: Login falho com senha incorreta ---
-    test('Login com senha inválida', async () => {
+    // Scenario: Login falho com senha incorreta
+    test('Login com senha inválida deve exibir erro de credenciais inválidas', async () => {
         // Given Usuário com Username válido
-        const validUser = genericFactory.createUser('validuser', 'wrongpassword');
-        
+        const validUser = user.username;
+        const wrongPassword = 'wrong_password';
+
         // When Insere Username e Password incorretos
-        await loginPage.login(validUser.username, 'wrongpassword');
+        const result = await SAUCEDEMOPage.login(validUser, wrongPassword);
 
         // Then Deve exibir mensagem de erro de credenciais inválidas
-        await expect(loginPage).toDisplayErrorMessage(ALERT_MESSAGES.INVALID_CREDENTIALS);
+        await expect(result).toHaveError(ALERT_MESSAGES.INVALID_CREDENTIALS);
     });
 
-    // --- Scenario: Login bem-sucedido com credenciais válidas (Usuário Padrão) ---
-    test('Login de um usuário padrão', async () => {
+    // Scenario: Login bem-sucedido com credenciais válidas (Usuário Padrão)
+    test('Login de um usuário padrão deve redirecionar para a página principal/inventário', async () => {
         // Given Usuário com credenciais válidas
-        const validUser = genericFactory.createUser('standarduser', 'correctpassword');
+        const validUser = user.username;
+        const validPassword = user.password;
 
         // When Insere Username e Password corretamente
-        await loginPage.login(validUser.username, validUser.password);
+        const result = await SAUCEDEMOPage.login(validUser, validPassword);
 
         // Then Deve ser redirecionado para a página principal/inventário
-        await inventoryPage.assertLoaded(); // Check if the target page is loaded successfully
+        await expect(result).toHaveURL(ROUTES.INVENTORY_ROUTE);
     });
 
-    // --- Scenario: Adicionar item ao carrinho com sucesso (Fluxo Positivo) ---
-    test('Adicionar um produto ao carrinho', async () => {
-        const user = genericFactory.createUser('positiveuser', 'password123');
-        await loginPage.login(user.username, user.password);
-
-        // Given Usuário autenticado e no inventário (Implicitly handled by successful login)
+    // Scenario: Adicionar item ao carrinho com sucesso (Fluxo Positivo)
+    test('Adicionar um produto ao carrinho deve atualizar o contador', async () => {
+        // Given Usuário autenticado e no inventário
+        await SAUCEDEMOPage.login(user.username, user.password);
+        await SAUCEDEMOPage.navigateTo(ROUTES.INVENTORY_ROUTE);
 
         // When Seleciona um produto e Clica em 'Adicionar ao Carrinho'
-        await cartPage.addItem(user.id, 'productB', 2); // Add item with quantity 2
+        const success = await SAUCEDEMOPage.addToCart('product_id_2');
 
         // Then Deve receber feedback positivo de sucesso e o contador do carrinho deve ser atualizado
-        const currentCount = await cartPage.getCartItemCount();
-        expect(currentCount).toBeGreaterThan(0);
-        await expect(cartPage).toDisplaySuccessMessage('Item added successfully');
+        await expect(success).toBe(true);
+        await SAUCEDEMOPage.assertCartItemCount(); // Assumes a method to check cart count
     });
 
-    // --- Scenario: Gerenciamento de quantidade no carrinho (Fluxo Positivo) ---
-    test('Ajustar a quantidade de um item no carrinho', async () => {
-        const user = genericFactory.createUser('quantityuser', 'password123');
-        await loginPage.login(user.username, user.password);
-
+    // Scenario: Gerenciamento de quantidade no carrinho (Fluxo Positivo)
+    test('Ajustar a quantidade de um item no carrinho deve refletir o novo valor', async () => {
         // Given Um item está no carrinho com quantidade X
-        await cartPage.addItem(user.id, 'productC', 5); // Start with quantity 5
+        const initialQuantity = 1;
+        await SAUCEDEMOPage.addItemToCart(user.username, 'product_id_3'); // Add item first
 
         // When Altera a quantidade para Y (onde Y é válido)
-        const newQuantity = 3;
-        await cartPage.updateItemQuantity(user.id, 'productC', newQuantity);
+        const newQuantity = 5;
+        await SAUCEDEMOPage.updateCartQuantity('product_id_3', newQuantity);
 
         // And Confirma a alteração
-        const updatedQuantity = await cartPage.getItemQuantity(user.id, 'productC');
+        await SAUCEDEMOPage.confirmUpdate();
 
         // Then A quantidade exibida deve ser Y
-        expect(updatedQuantity).toBe(newQuantity);
+        const currentQuantity = await SAUCEDEMOPage.getCartItemQuantity('product_id_3');
+        await expect(currentQuantity).toBe(newQuantity);
     });
 
-    // --- Scenario: Regressão: Fluxo completo de compra (Smoke Test) ---
-    test('Fluxo de compra completo (Adicionar, Carrinho, Checkout simulado)', async () => {
-        const user = genericFactory.createUser('smokeuser', 'password123');
-        await loginPage.login(user.username, user.password);
-
+    // Scenario: Regressão: Fluxo completo de compra (Smoke Test)
+    test('Fluxo de compra completo deve navegar para a tela de checkout', async () => {
         // Given Usuário autenticado e com itens no carrinho
-        await cartPage.addItem(user.id, 'productD', 1);
+        await SAUCEDEMOPage.login(user.username, user.password);
+        await SAUCEDEMOPage.addItemToCart(user.username, 'product_id_1');
 
         // When Inicia o processo de checkout
-        await cartPage.initiateCheckout();
+        const checkoutResult = await SAUCEDEMOPage.startCheckout();
 
         // Then Deve navegar para a tela de checkout
-        await expect(cartPage).toHaveURL(ROUTES.CHECKOUT_ROUTE);
+        await expect(checkoutResult).toHaveURL(ROUTES.CHECKOUT_ROUTE);
     });
 
-    // --- Scenario: Verificar acesso ao inventário sem autenticação (Security) ---
-    test('Tentar acessar /inventory.html sem login', async () => {
+    // Scenario: Verificar acesso ao inventário sem autenticação (Security)
+    test('Tentar acessar /inventory.html sem login deve redirecionar ou exibir erro', async () => {
         // Given Usuário não autenticado
-        await inventoryPage.navigate(ROUTES.INVENTORY_ROUTE);
+        await SAUCEDEMOPage.clearSession(); // Ensure no session exists
 
         // When Navega para /inventory.html
+        const result = await SAUCEDEMOPage.navigateTo(ROUTES.INVENTORY_ROUTE);
+
         // Then Deve ser redirecionado para a página de login ou exibir mensagem de erro
-        await expect(inventoryPage).toHaveError('Access Denied'); 
+        if (result.url().includes(ROUTES.LOGIN_ROUTE)) {
+            // Success: Redirected to login page
+            await expect(result).toHaveURL(ROUTES.LOGIN_ROUTE);
+        } else if (result.text().includes(ALERT_MESSAGES.ACCESS_DENIED)) {
+            // Success: Displayed error message on the inventory page
+            await expect(result).toContainText(ALERT_MESSAGES.ACCESS_DENIED);
+        } else {
+            // Fallback assertion if behavior is unexpected (e.g., direct block)
+            await expect(result).not.toHaveURL(ROUTES.INVENTORY_ROUTE);
+        }
     });
 });

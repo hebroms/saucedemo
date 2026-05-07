@@ -1,39 +1,30 @@
-name: Playwright CI/CD
+name: Playwright CI
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
+    - uses: actions/checkout@v4
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Install Playwright Browsers
-      run: npx playwright install
-
+        node-version: 18
+        cache: 'npm'
+    - name: Install Dependencies
+      run: npm ci
     - name: Run Playwright Tests
-      # Rule 1: Environment variables are accessed here. We assume the test setup handles using these secrets for login/context if necessary, or they are used as configuration context.
-      # Rule 2: Playwright tests run in parallel by default when configured correctly.
-      run: npx playwright test --project=chromium --reporter=html --output=playwright-report
-
-    - name: Upload Test Report Artifacts
+      # Rule 2: Running tests. Playwright handles parallel execution by default.
+      run: npx playwright test
+    - name: Generate and Upload Report Artifacts
       # Rule 3: Generate HTML report and upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: playwright-report
+        name: playwright-report-${{ github.run_id }}
         path: playwright-report
         retention-days: 7
