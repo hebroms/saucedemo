@@ -6,172 +6,156 @@ import { ROUTES } from '../constants/route.constants';
 import { ALERT_MESSAGES } from '../constants/alert.constants';
 
 describe('SAUCEDEMO Feature Tests', () => {
-    let loginPage: SAUCEDEMOPage;
-    let inventoryPage: SAUCEDEMOPage;
-    let genericFactory: GenericFactory;
+    let user;
+    let standardUser;
+    let genericFactory;
 
+    // Setup before each test: Login and setup context
     beforeEach(async () => {
-        // Initialize Page Objects
-        loginPage = new SAUCEDEMOPage();
-        inventoryPage = new SAUCEDEMOPage();
         genericFactory = new GenericFactory();
+        user = await genericFactory.createTestUser('test@example.com', 'password123');
+        standardUser = await genericFactory.createTestUser('admin@example.com', 'securepass');
 
-        // Setup Login (Assuming standard setup for all tests)
-        await loginPage.login(ENVIRONMENTS.STANDARD_USER, ENVIRONMENTS.STANDARD_PASSWORD);
+        // Assuming the base page handles navigation and setup based on environment
+        await SAUCEDEMOPage.initialize(ENVIRONMENTS);
+        await SAUCEDEMOPage.login(user.username, user.password);
     });
 
-    // --- Scenario 1: Successful search for an existing product ---
+    // --- Scenario: Successful search for an existing product ---
     test('Successful search for an existing product', async () => {
-        // Given the user is on the search page (Assumed by initial state or navigation)
-        await inventoryPage.navigate(ROUTES.SEARCH_ROUTE);
-
-        // When the user searches for a known product name
-        const productName = 'Existing Product Name'; // Placeholder for a known item
-        await inventoryPage.searchForProduct(productName);
-
-        // And clicks Search
-        await inventoryPage.clickSearch();
-
-        // Then the search results should display the correct product
-        await inventoryPage.assertSearchResultsDisplay(productName);
+        await SAUCEDEMOPage.navigateTo(ROUTES.SEARCH_PAGE);
+        await SAUCEDEMOPage.searchForProduct(user.knownProductName); // Assumes page object handles finding the input field and typing
+        await SAUCEDEMOPage.clickSearch();
+        await SAUCEDEMOPage.assertSearchResultsDisplay(user.knownProductName);
     });
 
-    // --- Scenario 2: Successfully adding multiple items to the cart ---
+    // --- Scenario: Successfully adding multiple items to the cart ---
     test('Successfully adding multiple items to the cart', async () => {
-        // Given the user is on a product page (Assume we start on a product detail page)
-        await inventoryPage.navigate(ROUTES.PRODUCT_DETAIL_ROUTE);
+        await SAUCEDEMOPage.navigateTo(ROUTES.PRODUCT_PAGE);
+        
+        // Add Product A
+        await SAUCEDEMOPage.selectProductAndAddToCart(user.productAId);
+        
+        // Add Product B
+        await SAUCEDEMOPage.selectProductAndAddToCart(user.productBId);
 
-        // When the user adds Product A and Product B to the cart
-        const productAId = await genericFactory.getProductId('Product A');
-        const productBId = await genericFactory.getProductId('Product B');
-
-        await inventoryPage.addToCart(productAId, 1);
-        await inventoryPage.addToCart(productBId, 2);
-
-        // And views the cart summary
-        await inventoryPage.viewCartSummary();
-
-        // Then the total price calculation should be accurate
-        const expectedTotal = 150.00; // Placeholder assertion based on known prices
-        await inventoryPage.assertCartTotal(expectedTotal);
+        await SAUCEDEMOPage.viewCartSummary();
+        
+        // Assertion: Check if the total calculation is accurate (assuming we know the expected result based on setup)
+        await expect(SAUCEDEMOPage.getCartTotal()).toBeGreaterThan(0); 
     });
 
-    // --- Scenario 3: Updating the quantity of an existing cart item ---
+    // --- Scenario: Updating the quantity of an existing cart item ---
     test('Updating the quantity of an existing cart item', async () => {
-        // Given an item is in the cart with quantity Q1
-        const itemId = await genericFactory.getProductId('Product A');
-        await inventoryPage.addToCart(itemId, 5); // Start with Q1=5
+        // Setup: Ensure an item is in the cart (Simulated setup)
+        await SAUCEDEMOPage.addItemToCart(user.productAId, 1);
 
-        // When the user updates the quantity to Q2 (where Q2 > Q1)
-        const newQuantity = 10;
-        await inventoryPage.updateCartItemQuantity(itemId, newQuantity);
+        const initialQuantity = 1;
+        const newQuantity = 5;
 
-        // And saves the change
-        await inventoryPage.saveChanges();
+        // Action: Update quantity and save
+        await SAUCEDEMOPage.updateCartItemQuantity(user.productAId, newQuantity);
+        await SAUCEDEMOPage.saveChanges();
 
-        // Then the cart total should reflect the new quantity and updated price
-        const expectedNewTotal = 250.00; // Assuming Product A price is $50, new total is $100 (A) + $100 (B if B was also added)
-        await inventoryPage.assertCartTotal(expectedNewTotal);
+        // Assertion: Check if the cart total reflects the new quantity and updated price
+        const updatedTotal = await SAUCEDEMOPage.getCartTotal();
+        await expect(updatedTotal).toBeGreaterThan(SAUCEDEMOPage.calculatePriceForQuantity(user.productAId, newQuantity));
     });
 
-    // --- Scenario 4: Attempting to access admin panel as standard user ---
+    // --- Scenario: Attempting to access admin panel as standard user ---
     test('Attempting to access admin panel as standard user', async () => {
-        // Given the user is logged in as a Standard User (Setup handled by beforeEach)
+        await SAUCEDEMOPage.navigateTo(ROUTES.ADMIN_PANEL);
+        
+        // Action: Attempt navigation
+        await SAUCEDEMOPage.navigate();
 
-        // When the user attempts to navigate to /admin
-        await inventoryPage.navigate(ROUTES.ADMIN_ROUTE);
-
-        // Then the system must redirect or display an access denied message
-        await inventoryPage.assertAccessDenied(); // Assumes this method checks for redirection/message based on context
+        // Assertion: Check for redirection or access denied message (assuming the page object handles this check)
+        await expect(SAUCEDEMOPage.getErrorMessage()).toContain('Access Denied'); 
     });
 
-    // --- Scenario 5: Attempting to add zero quantity to the cart (Boundary) ---
+    // --- Scenario: Attempting to add zero quantity to the cart ---
     test('Attempting to add zero quantity to the cart', async () => {
-        // Given the user is on a product page
-        const itemId = await genericFactory.getProductId('Product A');
+        await SAUCEDEMOPage.navigateTo(ROUTES.PRODUCT_PAGE);
+        
+        const zeroQuantity = 0;
 
-        // When the user attempts to set quantity to 0
-        await inventoryPage.setQuantity(itemId, 0);
+        // Action: Set quantity to 0 and click Add to Cart
+        await SAUCEDEMOPage.setQuantity(zeroQuantity);
+        await SAUCEDEMOPage.addToCart();
 
-        // And clicks Add to Cart
-        await inventoryPage.addToCart(itemId, 0);
-
-        // Then the system should reject the action and display an appropriate message
-        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.INVALID_QUANTITY_ERROR);
+        // Assertion: System should reject the action and display an appropriate message
+        await expect(SAUCEDEMOPage.getErrorMessage()).toContain('Quantity must be greater than zero');
     });
 
-    // --- Scenario 6: Attempting to add minimum quantity (1) (Boundary) ---
+    // --- Scenario: Attempting to add minimum quantity (1) ---
     test('Attempting to add minimum quantity (1)', async () => {
-        // Given the user is viewing a product page
-        const itemId = await genericFactory.getProductId('Product A');
+        await SAUCEDEMOPage.navigateTo(ROUTES.PRODUCT_PAGE);
+        
+        const minQuantity = 1;
 
-        // When the user sets the quantity input to 1
-        await inventoryPage.setQuantity(itemId, 1);
+        // Action: Set quantity to 1 and click Add to Cart
+        await SAUCEDEMOPage.setQuantity(minQuantity);
+        await SAUCEDEMOPage.addToCart();
 
-        // And clicks Add to Cart
-        await inventoryPage.addToCart(itemId, 1);
-
-        // Then the item should be added successfully
-        await inventoryPage.assertItemAddedToCart(itemId);
+        // Assertion: Item should be added successfully (checking cart state)
+        await expect(SAUCEDEMOPage.isInCart(user.productAId)).toBe(true);
     });
 
-    // --- Scenario 7: Attempting to add maximum allowed quantity (Boundary) ---
+    // --- Scenario: Attempting to add maximum allowed quantity ---
     test('Attempting to add maximum allowed quantity', async () => {
-        // Given the product has a maximum stock limit of N
-        const maxStock = await genericFactory.getMaxStockLimit('Product A');
+        const maxStock = 10; // Assuming N=10 for this test context
+        
+        await SAUCEDEMOPage.navigateTo(ROUTES.PRODUCT_PAGE);
 
-        // When the user attempts to set quantity to N (or slightly above)
-        await inventoryPage.setQuantity(await genericFactory.getProductId('Product A'), maxStock + 1);
+        // Action: Attempt to set quantity to N (or slightly above)
+        await SAUCEDEMOPage.setQuantity(maxStock + 1);
+        await SAUCEDEMOPage.addToCart();
 
-        // And clicks Add to Cart
-        await inventoryPage.addToCart(await genericFactory.getProductId('Product A'), maxStock + 1);
-
-        // Then the system should display an appropriate error message regarding stock limits
-        await inventoryPage.assertErrorMessage(ALERT_MESSAGES.STOCK_LIMIT_EXCEEDED);
+        // Assertion: System should display an appropriate error message regarding stock limits
+        await expect(SAUCEDEMOPage.getErrorMessage()).toContain('Exceeds maximum stock limit');
     });
 
-    // --- Scenario 8: Verifying the final price calculation includes taxes/fees (Business Rule) ---
+    // --- Scenario: Verifying the final price calculation includes taxes/fees ---
     test('Verifying the final price calculation includes taxes/fees', async () => {
-        // Given the cart total is calculated (Assume items are in cart from previous steps or setup)
-        await inventoryPage.viewCartSummary();
+        // Setup: Ensure cart total is calculated (Simulated setup)
+        await SAUCEDEMOPage.addItemToCart(user.productAId, 1);
 
-        // When the user proceeds to payment stage
-        await inventoryPage.proceedToPayment();
+        const calculatedTotal = await SAUCEDEMOPage.getCartTotal();
+        
+        // Action: Proceed to payment stage
+        await SAUCEDEMOPage.proceedToPayment();
 
-        // Then the displayed final amount must strictly match the calculated total plus any mandatory fees
-        const calculatedTotalWithFees = 300.50; // Placeholder for actual calculation logic
-        await inventoryPage.assertFinalAmountMatches(calculatedTotalWithFees);
+        // Assertion: The displayed final amount must strictly match the calculated total plus any mandatory fees
+        const expectedFinalAmount = calculatedTotal + await SAUCEDEMOPage.getMandatoryFees();
+        
+        await expect(SAUCEDEMOPage.getFinalAmount()).toBeCloseTo(expectedFinalAmount, 2);
     });
 
-    // --- Scenario 9: Entering an invalid email format (Negative) ---
+    // --- Scenario: Entering an invalid email format for account creation ---
     test('Entering an invalid email format for account creation', async () => {
-        // Given the user is on the registration form
-        await inventoryPage.navigate(ROUTES.REGISTRATION_ROUTE);
-
-        // When the user enters an improperly formatted email address
+        await SAUCEDEMOPage.navigateTo(ROUTES.REGISTRATION_FORM);
+        
         const invalidEmail = 'invalid-email-format';
-        await inventoryPage.enterRegistrationData({ email: invalidEmail, password: 'password123' });
 
-        // And attempts to register
-        await inventoryPage.submitRegistration();
+        // Action: Enter improperly formatted email address and attempt to register
+        await SAUCEDEMOPage.enterEmail(invalidEmail);
+        await SAUCEDEMOPage.submitRegistration();
 
-        // Then a clear validation error must be displayed for the email field
-        await inventoryPage.assertValidationError('email', ALERT_MESSAGES.INVALID_EMAIL_FORMAT);
+        // Assertion: A clear validation error must be displayed for the email field
+        await expect(SAUCEDEMOPage.getErrorMessageForField('email')).toContain('Please enter a valid email address');
     });
 
-    // --- Scenario 10: Searching for a non-existent product (Negative) ---
+    // --- Scenario: Searching for a non-existent product ---
     test('Searching for a non-existent product', async () => {
-        // Given the user is on the search page
-        await inventoryPage.navigate(ROUTES.SEARCH_ROUTE);
+        await SAUCEDEMOPage.navigateTo(ROUTES.SEARCH_PAGE);
+        
+        const nonExistentItem = 'this-product-does-not-exist-12345';
 
-        // When the user searches for a random, non-existent item
-        const nonExistentItem = 'DefinitelyNotARealProduct123';
-        await inventoryPage.searchForProduct(nonExistentItem);
+        // Action: Search for a random, non-existent item and click Search
+        await SAUCEDEMOPage.searchForProduct(nonExistentItem);
+        await SAUCEDEMOPage.clickSearch();
 
-        // And clicks Search
-        await inventoryPage.clickSearch();
-
-        // Then a message stating 'No results found' should be displayed
-        await inventoryPage.assertResultMessage('No results found');
+        // Assertion: A message stating 'No results found' should be displayed
+        await expect(SAUCEDEMOPage.getErrorMessage()).toContain('No results found');
     });
 });

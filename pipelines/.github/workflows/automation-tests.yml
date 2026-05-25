@@ -1,8 +1,7 @@
-name: Playwright CI
-
+name: Playwright Tests
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop]
   pull_request:
     branches: [ main ]
 
@@ -10,21 +9,28 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
-        cache: 'npm'
-    - name: Install Dependencies
+        node-version: '20'
+
+    - name: Install dependencies
       run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install
+
     - name: Run Playwright Tests
-      # Rule 2: Running tests. Playwright handles parallel execution by default.
-      run: npx playwright test
-    - name: Generate and Upload Report Artifacts
-      # Rule 3: Generate HTML report and upload artifacts
+      # Rule 2: Running tests. Playwright test runs in parallel by default across files/tests if configured, and this step executes the command.
+      run: npx playwright test --project=chromium --reporter=html --output=playwright-report
+
+    - name: Upload Test Report Artifacts
+      # Rule 3: Generate HTML report and upload artifacts.
       uses: actions/upload-artifact@v4
       with:
-        name: playwright-report-${{ github.run_id }}
+        name: playwright-report
         path: playwright-report
         retention-days: 7

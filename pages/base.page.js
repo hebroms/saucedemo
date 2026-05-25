@@ -1,6 +1,6 @@
-const { expect } = require('playwright');
-const ENVIRONMENTS = require('../constants/environment.constants');
-const elements = require('../elements/base.elements');
+import { expect } from 'playwright';
+import { ENVIRONMENTS } from '../constants/environment.constants';
+import * as baseElements from '../elements/base.elements';
 
 class BasePage {
     /**
@@ -11,13 +11,13 @@ class BasePage {
     }
 
     /**
-     * Navigates to a specified route using the current environment context.
+     * Navigates to a specific route using the current environment setting.
      * @param {string} route
      * @returns {Promise<void>}
      */
     async navigate(route) {
-        const url = `${ENVIRONMENTS.current}${route}`;
-        await this.page.goto(url);
+        const fullRoute = `${ENVIRONMENTS.current}${route}`;
+        await this.page.goto(fullRoute);
     }
 
     /**
@@ -25,67 +25,30 @@ class BasePage {
      * @returns {Promise<void>}
      */
     async assertPageLoaded() {
-        // Default implementation does nothing, allowing subclasses to enforce specific checks.
+        // Default implementation does nothing, forcing subclasses to implement specific checks.
     }
 
-    // --- Global Element Methods based on base.elements ---
+    // --- Methods for Global Elements (Assuming these map directly to baseElements) ---
 
     /**
-     * Gets the header container element.
-     * @returns {import('playwright').Locator}
-     */
-    async getHeaderContainer() {
-        return this.page.locator(elements.headerContainer);
-    }
-
-    /**
-     * Gets the primary header element.
-     * @returns {import('playwright').Locator}
-     */
-    async getPrimaryHeader() {
-        return this.page.locator(elements.primaryHeader);
-    }
-
-    /**
-     * Toggles the menu (e.g., opens/closes navigation menu).
-     * @returns {Promise<void>}
-     */
-    async openMenu() {
-        await this.page.locator(elements.openMenuToggle).click();
-    }
-
-    /**
-     * Clicks the shopping cart link.
-     * @returns {Promise<void>}
-     */
-    async openCart() {
-        await this.page.locator(elements.shoppingCartLink).click();
-    }
-
-    /**
-     * Gets the secondary header element.
-     * @returns {import('playwright').Locator}
-     */
-    async getSecondaryHeader() {
-        return this.page.locator(elements.secondaryHeader);
-    }
-
-    /**
-     * Logs the user out (Placeholder action).
+     * Logs the user out.
      * @returns {Promise<void>}
      */
     async logout() {
-        // Implementation specific to the application's logout flow
-        // Example: await this.page.locator('#logout-button').click();
+        // Placeholder implementation based on assumed selector structure
+        await this.page.click(baseElements.logoutButton);
     }
 
     /**
-     * Opens the main cart view (Placeholder action).
+     * Opens the shopping cart.
      * @returns {Promise<void>}
      */
-    async openCartView() {
-        await this.openCart();
+    async openCart() {
+        // Placeholder implementation based on assumed selector structure
+        await this.page.click(baseElements.openCartLink);
     }
+
+    // Add other global methods as defined in base.elements here...
 }
 
-module.exports = BasePage;
+export default BasePage;

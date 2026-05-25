@@ -1,6 +1,5 @@
 export interface FormData {
-  firstName?: string;
-  lastName?: string;
-  postalCode?: string;
-  continue?: string;
+  userName?: string;
+  password?: string;
+  loginButton?: string;
 }
