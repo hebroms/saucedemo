@@ -7,5 +7,4 @@ import { Locator } from '@playwright/test';
 export class CartPageElements {
   // Menu e Navegação
   inventoryMenu: Locator;
-  cartItems: Locator;
 }
